@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { matchesTable, profilesTable, blocksTable, messagesTable } from "@workspace/db";
-import { eq, and, or, ne, notExists, isNull, sql, count } from "drizzle-orm";
+import { eq, and, or, ne, notExists, sql, count } from "drizzle-orm";
+import { z } from "zod/v4";
 
 const router = Router();
+
+const endMatchSchema = z.object({
+  block: z.boolean(),
+});
 
 function todayUTC(): string {
   return new Date().toISOString().slice(0, 10);
@@ -11,12 +16,9 @@ function todayUTC(): string {
 
 function midnightUTC(): string {
   const now = new Date();
-  const midnight = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1,
-    0, 0, 0, 0
-  ));
+  const midnight = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0)
+  );
   return midnight.toISOString();
 }
 
@@ -38,31 +40,31 @@ router.get("/matches/today", async (req, res) => {
       return res.json({ status: "no_profile", matchId: null, partner: null, matchDate: null, expiresAt: null });
     }
 
-    // Update last active
     await db
       .update(profilesTable)
       .set({ lastActive: new Date() })
       .where(eq(profilesTable.userId, userId));
 
-    // Check for existing match today
     const [existingMatch] = await db
       .select()
       .from(matchesTable)
       .where(
         and(
           eq(matchesTable.matchDate, today),
-          or(
-            eq(matchesTable.user1Id, userId),
-            eq(matchesTable.user2Id, userId)
-          )
+          or(eq(matchesTable.user1Id, userId), eq(matchesTable.user2Id, userId))
         )
       )
       .limit(1);
 
     if (existingMatch) {
-      const partnerId = existingMatch.user1Id === userId ? existingMatch.user2Id : existingMatch.user1Id;
+      const partnerId =
+        existingMatch.user1Id === userId ? existingMatch.user2Id : existingMatch.user1Id;
 
-      if (existingMatch.status === "ended_by_user_1" || existingMatch.status === "ended_by_user_2" || existingMatch.status === "blocked") {
+      if (
+        existingMatch.status === "ended_by_user_1" ||
+        existingMatch.status === "ended_by_user_2" ||
+        existingMatch.status === "blocked"
+      ) {
         return res.json({
           status: existingMatch.status === "blocked" ? "blocked" : "ended",
           matchId: existingMatch.id,
@@ -81,18 +83,19 @@ router.get("/matches/today", async (req, res) => {
       return res.json({
         status: "active",
         matchId: existingMatch.id,
-        partner: partnerProfile ? {
-          displayName: partnerProfile.displayName,
-          avatarUrl: partnerProfile.avatarUrl,
-          icebreaker: partnerProfile.icebreaker,
-        } : null,
+        partner: partnerProfile
+          ? {
+              displayName: partnerProfile.displayName,
+              avatarUrl: partnerProfile.avatarUrl,
+              icebreaker: partnerProfile.icebreaker,
+            }
+          : null,
         matchDate: existingMatch.matchDate,
         expiresAt: midnightUTC(),
       });
     }
 
     // No match today — attempt matchmaking
-    // Find an available unmatched user who is not blocked with us
     const oneCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const candidates = await db
@@ -102,9 +105,9 @@ router.get("/matches/today", async (req, res) => {
         and(
           ne(profilesTable.userId, userId),
           sql`${profilesTable.lastActive} > ${oneCutoff}`,
-          // Not already matched today
           notExists(
-            db.select({ id: matchesTable.id })
+            db
+              .select({ id: matchesTable.id })
               .from(matchesTable)
               .where(
                 and(
@@ -116,14 +119,20 @@ router.get("/matches/today", async (req, res) => {
                 )
               )
           ),
-          // Not blocked by or blocking us
           notExists(
-            db.select({ id: blocksTable.id })
+            db
+              .select({ id: blocksTable.id })
               .from(blocksTable)
               .where(
                 or(
-                  and(eq(blocksTable.blockerId, userId), eq(blocksTable.blockedId, profilesTable.userId)),
-                  and(eq(blocksTable.blockerId, profilesTable.userId), eq(blocksTable.blockedId, userId))
+                  and(
+                    eq(blocksTable.blockerId, userId),
+                    eq(blocksTable.blockedId, profilesTable.userId)
+                  ),
+                  and(
+                    eq(blocksTable.blockerId, profilesTable.userId),
+                    eq(blocksTable.blockedId, userId)
+                  )
                 )
               )
           )
@@ -132,11 +141,16 @@ router.get("/matches/today", async (req, res) => {
       .limit(10);
 
     if (candidates.length === 0) {
-      return res.json({ status: "waiting", matchId: null, partner: null, matchDate: today, expiresAt: midnightUTC() });
+      return res.json({
+        status: "waiting",
+        matchId: null,
+        partner: null,
+        matchDate: today,
+        expiresAt: midnightUTC(),
+      });
     }
 
-    // Pick first candidate (could add diversity logic here)
-    const candidate = candidates[0];
+    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
 
     const [newMatch] = await db
       .insert(matchesTable)
@@ -157,11 +171,13 @@ router.get("/matches/today", async (req, res) => {
     return res.json({
       status: "active",
       matchId: newMatch.id,
-      partner: partnerProfile ? {
-        displayName: partnerProfile.displayName,
-        avatarUrl: partnerProfile.avatarUrl,
-        icebreaker: partnerProfile.icebreaker,
-      } : null,
+      partner: partnerProfile
+        ? {
+            displayName: partnerProfile.displayName,
+            avatarUrl: partnerProfile.avatarUrl,
+            icebreaker: partnerProfile.icebreaker,
+          }
+        : null,
       matchDate: newMatch.matchDate,
       expiresAt: midnightUTC(),
     });
@@ -177,7 +193,13 @@ router.post("/matches/:matchId/end", async (req, res) => {
   }
   const userId = req.user!.id;
   const { matchId } = req.params;
-  const { block } = req.body;
+
+  const parsed = endMatchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+  }
+
+  const { block } = parsed.data;
 
   try {
     const [match] = await db
@@ -240,10 +262,7 @@ router.get("/matches/archive", async (req, res) => {
       .from(matchesTable)
       .where(
         and(
-          or(
-            eq(matchesTable.user1Id, userId),
-            eq(matchesTable.user2Id, userId)
-          ),
+          or(eq(matchesTable.user1Id, userId), eq(matchesTable.user2Id, userId)),
           sql`${matchesTable.matchDate} < ${today}`
         )
       )

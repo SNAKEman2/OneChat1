@@ -2,9 +2,30 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { logger } from "../lib/logger";
+import { z } from "zod/v4";
 
 const router = Router();
+
+const displayNameSchema = z.string().min(1).max(50).trim();
+const icebreakerSchema = z.string().min(1).max(280).trim();
+const avatarUrlSchema = z
+  .string()
+  .url()
+  .max(500)
+  .optional()
+  .nullable();
+
+const patchProfileSchema = z.object({
+  displayName: displayNameSchema.optional(),
+  icebreaker: icebreakerSchema.optional(),
+  avatarUrl: avatarUrlSchema,
+});
+
+const setupProfileSchema = z.object({
+  displayName: displayNameSchema,
+  icebreaker: icebreakerSchema,
+  avatarUrl: avatarUrlSchema,
+});
 
 router.get("/profiles/me", async (req, res) => {
   if (!req.isAuthenticated()) {
@@ -33,14 +54,20 @@ router.patch("/profiles/me", async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
   const userId = req.user!.id;
-  const { displayName, avatarUrl, icebreaker } = req.body;
+
+  const parsed = patchProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+  }
+
+  const { displayName, avatarUrl, icebreaker } = parsed.data;
 
   try {
-    const updateData: Record<string, unknown> = {
+    const updateData: Partial<typeof profilesTable.$inferInsert> & { lastActive: Date } = {
       lastActive: new Date(),
     };
     if (displayName !== undefined) updateData.displayName = displayName;
-    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl ?? null;
     if (icebreaker !== undefined) updateData.icebreaker = icebreaker;
 
     const [updated] = await db
@@ -64,11 +91,13 @@ router.post("/profiles/setup", async (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
   const userId = req.user!.id;
-  const { displayName, avatarUrl, icebreaker } = req.body;
 
-  if (!displayName || !icebreaker) {
-    return res.status(400).json({ error: "displayName and icebreaker are required" });
+  const parsed = setupProfileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
+
+  const { displayName, avatarUrl, icebreaker } = parsed.data;
 
   try {
     const existing = await db

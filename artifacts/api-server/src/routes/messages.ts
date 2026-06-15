@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, matchesTable } from "@workspace/db";
-import { eq, and, or, asc } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
+import { z } from "zod/v4";
 
 const router = Router();
+
+const MESSAGE_MAX_LENGTH = 2000;
+
+const sendMessageSchema = z.object({
+  content: z.string().min(1).max(MESSAGE_MAX_LENGTH).trim(),
+});
 
 router.get("/matches/:matchId/messages", async (req, res) => {
   if (!req.isAuthenticated()) {
@@ -33,13 +40,15 @@ router.get("/matches/:matchId/messages", async (req, res) => {
       .where(eq(messagesTable.matchId, matchId))
       .orderBy(asc(messagesTable.createdAt));
 
-    return res.json(messages.map((m) => ({
-      id: m.id,
-      matchId: m.matchId,
-      senderId: m.senderId,
-      content: m.content,
-      createdAt: m.createdAt.toISOString(),
-    })));
+    return res.json(
+      messages.map((m) => ({
+        id: m.id,
+        matchId: m.matchId,
+        senderId: m.senderId,
+        content: m.content,
+        createdAt: m.createdAt.toISOString(),
+      }))
+    );
   } catch (err) {
     req.log.error({ err }, "Failed to get messages");
     return res.status(500).json({ error: "Internal server error" });
@@ -52,11 +61,13 @@ router.post("/matches/:matchId/messages", async (req, res) => {
   }
   const userId = req.user!.id;
   const { matchId } = req.params;
-  const { content } = req.body;
 
-  if (!content || typeof content !== "string" || content.trim().length === 0) {
-    return res.status(400).json({ error: "content is required" });
+  const parsed = sendMessageSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
+
+  const { content } = parsed.data;
 
   try {
     const [match] = await db
@@ -77,7 +88,6 @@ router.post("/matches/:matchId/messages", async (req, res) => {
       return res.status(403).json({ error: "Match is not active" });
     }
 
-    // Check if match has expired (past midnight UTC)
     const today = new Date().toISOString().slice(0, 10);
     if (match.matchDate < today) {
       return res.status(403).json({ error: "Match has expired" });
@@ -88,7 +98,7 @@ router.post("/matches/:matchId/messages", async (req, res) => {
       .values({
         matchId,
         senderId: userId,
-        content: content.trim(),
+        content,
       })
       .returning();
 
@@ -100,12 +110,11 @@ router.post("/matches/:matchId/messages", async (req, res) => {
       createdAt: message.createdAt.toISOString(),
     };
 
-    // Broadcast via WebSocket if available
     try {
       const { broadcastToMatch } = await import("../lib/websocket.js");
       broadcastToMatch(matchId, { type: "message", data: serialized });
     } catch (_) {
-      // WS not available, skip
+      req.log.warn("WebSocket broadcast skipped — module not available");
     }
 
     return res.status(201).json(serialized);
