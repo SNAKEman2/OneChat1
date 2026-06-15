@@ -497,6 +497,8 @@ components:
           type: string
         content:
           type: string
+        replyToId:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -508,6 +510,8 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+        replyToId:
+          type: ["string", "null"]
 
     ArchivedMatch:
       type: object

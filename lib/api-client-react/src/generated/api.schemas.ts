@@ -130,6 +130,8 @@ export interface Message {
   matchId: string;
   senderId: string;
   content: string;
+  /** @nullable */
+  replyToId?: string | null;
   createdAt: string;
 }
 
@@ -139,6 +141,8 @@ export interface MessageInput {
      * @maxLength 2000
      */
   content: string;
+  /** @nullable */
+  replyToId?: string | null;
 }
 
 export interface ArchivedMatch {

@@ -10,6 +10,7 @@ const MESSAGE_MAX_LENGTH = 2000;
 
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(MESSAGE_MAX_LENGTH).trim(),
+  replyToId: z.string().uuid().optional().nullable(),
 });
 
 router.get("/matches/:matchId/messages", async (req, res) => {
@@ -40,15 +41,7 @@ router.get("/matches/:matchId/messages", async (req, res) => {
       .where(eq(messagesTable.matchId, matchId))
       .orderBy(asc(messagesTable.createdAt));
 
-    return res.json(
-      messages.map((m) => ({
-        id: m.id,
-        matchId: m.matchId,
-        senderId: m.senderId,
-        content: m.content,
-        createdAt: m.createdAt.toISOString(),
-      }))
-    );
+    return res.json(messages.map(serializeMessage));
   } catch (err) {
     req.log.error({ err }, "Failed to get messages");
     return res.status(500).json({ error: "Internal server error" });
@@ -67,7 +60,7 @@ router.post("/matches/:matchId/messages", async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
 
-  const { content } = parsed.data;
+  const { content, replyToId } = parsed.data;
 
   try {
     const [match] = await db
@@ -99,16 +92,11 @@ router.post("/matches/:matchId/messages", async (req, res) => {
         matchId,
         senderId: userId,
         content,
+        replyToId: replyToId ?? null,
       })
       .returning();
 
-    const serialized = {
-      id: message.id,
-      matchId: message.matchId,
-      senderId: message.senderId,
-      content: message.content,
-      createdAt: message.createdAt.toISOString(),
-    };
+    const serialized = serializeMessage(message);
 
     try {
       const { broadcastToMatch } = await import("../lib/websocket.js");
@@ -123,5 +111,16 @@ router.post("/matches/:matchId/messages", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+function serializeMessage(m: typeof messagesTable.$inferSelect) {
+  return {
+    id: m.id,
+    matchId: m.matchId,
+    senderId: m.senderId,
+    content: m.content,
+    replyToId: m.replyToId ?? null,
+    createdAt: m.createdAt.toISOString(),
+  };
+}
 
 export { router as messagesRouter };

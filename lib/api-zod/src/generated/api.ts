@@ -220,6 +220,7 @@ export const GetMatchMessagesResponseItem = zod.object({
   "matchId": zod.string(),
   "senderId": zod.string(),
   "content": zod.string(),
+  "replyToId": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const GetMatchMessagesResponse = zod.array(GetMatchMessagesResponseItem)
@@ -237,7 +238,8 @@ export const sendMessageBodyContentMax = 2000;
 
 
 export const SendMessageBody = zod.object({
-  "content": zod.string().min(1).max(sendMessageBodyContentMax)
+  "content": zod.string().min(1).max(sendMessageBodyContentMax),
+  "replyToId": zod.string().nullish()
 })
 
 

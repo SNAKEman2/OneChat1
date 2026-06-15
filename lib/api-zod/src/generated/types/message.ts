@@ -11,5 +11,7 @@ export interface Message {
   matchId: string;
   senderId: string;
   content: string;
+  /** @nullable */
+  replyToId?: string | null;
   createdAt: string;
 }

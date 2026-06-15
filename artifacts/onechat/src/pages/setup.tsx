@@ -1,8 +1,38 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useSetupProfile } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
+
+async function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const isGif = file.type === "image/gif";
+    if (isGif) {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const SIZE = 256;
+      const canvas = document.createElement("canvas");
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext("2d")!;
+      const min = Math.min(img.width, img.height);
+      const sx = (img.width - min) / 2;
+      const sy = (img.height - min) / 2;
+      ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 export default function Setup() {
   const [, setLocation] = useLocation();
@@ -10,8 +40,11 @@ export default function Setup() {
 
   const [displayName, setDisplayName] = useState("");
   const [icebreaker, setIcebreaker] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarData, setAvatarData] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
 
+  const fileRef = useRef<HTMLInputElement>(null);
   const setupProfile = useSetupProfile();
 
   if (!authLoading && !isAuthenticated) {
@@ -19,11 +52,26 @@ export default function Setup() {
     return null;
   }
 
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCompressing(true);
+    try {
+      const data = await compressImage(file);
+      setAvatarPreview(data);
+      setAvatarData(data);
+    } catch {
+      /* ignore */
+    } finally {
+      setCompressing(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim() || !icebreaker.trim()) return;
     setupProfile.mutate(
-      { data: { displayName, icebreaker, avatarUrl: avatarUrl || undefined } },
+      { data: { displayName, icebreaker, avatarUrl: avatarData ?? undefined } },
       { onSuccess: () => setLocation("/room") }
     );
   };
@@ -31,33 +79,98 @@ export default function Setup() {
   const isReady = displayName.trim().length > 0 && icebreaker.trim().length > 0;
 
   return (
-    <div className="flex-1 flex flex-col" style={{ background: "hsl(220 13% 11%)" }}>
+    <div className="flex-1 flex flex-col min-h-0" style={{ background: "var(--surface-2)" }}>
       {/* Header */}
       <div
-        className="px-5 pt-14 pb-6"
-        style={{ borderBottom: "1px solid hsl(240 4% 22%)" }}
+        className="px-5 pt-14 pb-5"
+        style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
       >
-        <h1 className="text-2xl font-serif font-medium text-white">
-          Set up your profile
+        <h1 className="text-xl font-mono font-medium" style={{ color: "var(--foreground)" }}>
+          Create your profile
         </h1>
-        <p className="text-sm mt-1" style={{ color: "hsl(240 4% 55%)" }}>
-          This is how your match will see you today.
+        <p className="text-sm mt-1 font-mono" style={{ color: "var(--muted)" }}>
+          Your match sees this before the room opens.
         </p>
       </div>
 
       <motion.form
         onSubmit={handleSubmit}
-        className="flex-1 flex flex-col px-5 py-6 gap-5 max-w-lg w-full mx-auto"
-        initial={{ opacity: 0, y: 12 }}
+        className="flex-1 flex flex-col px-5 py-6 gap-6 max-w-md mx-auto w-full"
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.35 }}
       >
+        {/* Avatar picker */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="relative group"
+            disabled={compressing}
+          >
+            {avatarPreview ? (
+              <img
+                src={avatarPreview}
+                alt="Avatar"
+                className="w-24 h-24 rounded-full object-cover"
+                style={{ border: "3px solid var(--accent)" }}
+              />
+            ) : (
+              <div
+                className="w-24 h-24 rounded-full flex flex-col items-center justify-center gap-1 transition-colors"
+                style={{ background: "var(--input-bg)", border: "2px dashed var(--border)" }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 5v14M5 12h14"
+                    stroke="var(--muted)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="text-[10px] font-mono" style={{ color: "var(--muted)" }}>
+                  Photo / GIF
+                </span>
+              </div>
+            )}
+            {compressing && (
+              <div
+                className="absolute inset-0 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.6)" }}
+              >
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <div
+              className="absolute bottom-0 right-0 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "var(--accent)" }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path
+                  d="M8.5 1.5a1.5 1.5 0 012.12 2.12L4 10.25l-2.75.5.5-2.75L8.5 1.5z"
+                  stroke="white"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </button>
+          <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
+            {avatarPreview ? "Tap to change" : "Upload a photo or GIF"}
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,image/gif"
+            className="hidden"
+            onChange={handleFile}
+          />
+        </div>
+
         {/* Display name */}
         <div className="flex flex-col gap-1.5">
-          <label
-            className="text-xs font-mono uppercase tracking-widest"
-            style={{ color: "hsl(240 4% 55%)" }}
-          >
+          <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
             Display name
           </label>
           <input
@@ -67,104 +180,53 @@ export default function Setup() {
             placeholder="Your name"
             maxLength={50}
             autoFocus
-            className="w-full px-4 py-3.5 rounded-xl text-white text-lg font-serif outline-none transition-all"
+            className="w-full px-4 py-3 text-base font-mono rounded-lg outline-none transition-all"
             style={{
-              background: "hsl(240 5% 17%)",
-              border: "1px solid hsl(240 4% 28%)",
+              background: "var(--input-bg)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border)",
             }}
-            onFocus={(e) =>
-              (e.target.style.borderColor = "hsl(211 100% 52%)")
-            }
-            onBlur={(e) =>
-              (e.target.style.borderColor = "hsl(240 4% 28%)")
-            }
+            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
         </div>
 
         {/* Icebreaker */}
         <div className="flex flex-col gap-1.5">
-          <label
-            className="text-xs font-mono uppercase tracking-widest"
-            style={{ color: "hsl(240 4% 55%)" }}
-          >
+          <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
             Icebreaker
           </label>
           <input
             type="text"
             value={icebreaker}
             onChange={(e) => setIcebreaker(e.target.value)}
-            placeholder="Something about you…"
+            placeholder="Something about you or a question…"
             maxLength={280}
-            className="w-full px-4 py-3.5 rounded-xl text-white text-base font-serif outline-none transition-all"
+            className="w-full px-4 py-3 text-base font-mono rounded-lg outline-none transition-all"
             style={{
-              background: "hsl(240 5% 17%)",
-              border: "1px solid hsl(240 4% 28%)",
+              background: "var(--input-bg)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border)",
             }}
-            onFocus={(e) =>
-              (e.target.style.borderColor = "hsl(211 100% 52%)")
-            }
-            onBlur={(e) =>
-              (e.target.style.borderColor = "hsl(240 4% 28%)")
-            }
+            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
-          <p className="text-xs" style={{ color: "hsl(240 4% 40%)" }}>
-            Your match sees this before the room opens.
+          <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
+            Pinned at the top of your chat as a status.
           </p>
         </div>
 
-        {/* Avatar URL */}
-        <div className="flex flex-col gap-1.5">
-          <label
-            className="text-xs font-mono uppercase tracking-widest"
-            style={{ color: "hsl(240 4% 55%)" }}
-          >
-            Avatar URL{" "}
-            <span style={{ color: "hsl(240 4% 38%)" }}>(optional)</span>
-          </label>
-          <div className="flex gap-3 items-center">
-            <input
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://…"
-              className="flex-1 px-4 py-3.5 rounded-xl text-white text-sm font-mono outline-none transition-all"
-              style={{
-                background: "hsl(240 5% 17%)",
-                border: "1px solid hsl(240 4% 28%)",
-              }}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "hsl(211 100% 52%)")
-              }
-              onBlur={(e) =>
-                (e.target.style.borderColor = "hsl(240 4% 28%)")
-              }
-            />
-            {avatarUrl && (
-              <motion.img
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                src={avatarUrl}
-                alt="Preview"
-                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                style={{ border: "2px solid hsl(240 4% 28%)" }}
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Submit */}
         <motion.button
           type="submit"
-          disabled={!isReady || setupProfile.isPending}
-          animate={{ opacity: isReady ? 1 : 0.35 }}
-          className="w-full py-4 rounded-xl text-white font-mono text-sm font-medium tracking-wide transition-opacity disabled:cursor-not-allowed"
-          style={{ background: "hsl(211 100% 52%)" }}
+          disabled={!isReady || setupProfile.isPending || compressing}
+          animate={{ opacity: isReady ? 1 : 0.3 }}
+          className="w-full py-3.5 rounded-lg font-mono text-sm font-medium text-white disabled:cursor-not-allowed transition-opacity"
+          style={{ background: "var(--accent)" }}
+          whileTap={{ scale: 0.98 }}
         >
-          {setupProfile.isPending ? "Creating profile…" : "Enter OneChat"}
+          {setupProfile.isPending ? "Creating…" : "Enter OneChat →"}
         </motion.button>
       </motion.form>
     </div>

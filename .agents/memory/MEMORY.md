@@ -1,3 +1,3 @@
-- [OneChat design constraints](onechat-design.md) — strict anti-SaaS visual rules; violating them breaks the aesthetic contract.
+- [OneChat design system](onechat-design.md) — Discord-dark v3: #313338 bg, both-sides Discord layout (no bubbles), reply-to, slide-up input, icebreaker status banner.
 - [OneChat DB uniqueness](onechat-db.md) — one-match-per-day is enforced at the DB level with unique indexes, not just in application code.
 - [replit-auth-web composite](replit-auth-web-composite.md) — lib/replit-auth-web must have composite:true to be referenced from artifact tsconfigs.

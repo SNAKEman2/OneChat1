@@ -8,10 +8,10 @@ const router = Router();
 
 const displayNameSchema = z.string().min(1).max(50).trim();
 const icebreakerSchema = z.string().min(1).max(280).trim();
+// Accept both https:// URLs and data: URLs (for base64-encoded local uploads)
 const avatarUrlSchema = z
   .string()
-  .url()
-  .max(500)
+  .max(400_000)
   .optional()
   .nullable();
 
