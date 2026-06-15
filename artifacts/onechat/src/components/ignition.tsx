@@ -18,19 +18,40 @@ const SHARED_PROMPTS = [
   "Whatever comes first.",
 ];
 
+function Avatar({ name, avatarUrl, size = 52 }: { name: string; avatarUrl?: string | null; size?: number }) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="rounded-full object-cover"
+        style={{ width: size, height: size }}
+        onError={(e) => (e.currentTarget.style.display = "none")}
+      />
+    );
+  }
+  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <div
+      className="rounded-full flex items-center justify-center text-white font-mono font-medium"
+      style={{ width: size, height: size, fontSize: size * 0.32, background: "hsl(211 60% 38%)" }}
+    >
+      {initials}
+    </div>
+  );
+}
+
 export default function Ignition({ partner, userId, ignitionResult, onTap, onDone }: IgnitionProps) {
   const [phase, setPhase] = useState<Phase>("forming");
   const [hasTapped, setHasTapped] = useState(false);
   const [resolvedMode, setResolvedMode] = useState<"first" | "second" | "shared" | null>(null);
   const [prompt] = useState(() => SHARED_PROMPTS[Math.floor(Math.random() * SHARED_PROMPTS.length)]);
 
-  // Forming → pulse after 2.4s
   useEffect(() => {
     const t = setTimeout(() => setPhase("pulse"), 2400);
     return () => clearTimeout(t);
   }, []);
 
-  // When ignition resolves from server
   useEffect(() => {
     if (!ignitionResult) return;
     const mode =
@@ -39,11 +60,9 @@ export default function Ignition({ partner, userId, ignitionResult, onTap, onDon
         : ignitionResult.firstSpeakerId === userId
         ? "first"
         : "second";
-
     setResolvedMode(mode);
     setPhase("resolved");
-
-    const t = setTimeout(() => onDone(mode), 2800);
+    const t = setTimeout(() => onDone(mode), 2600);
     return () => clearTimeout(t);
   }, [ignitionResult, userId, onDone]);
 
@@ -53,205 +72,162 @@ export default function Ignition({ partner, userId, ignitionResult, onTap, onDon
     onTap();
   };
 
-  // SVG arc dimensions
   const r = 38;
   const circumference = 2 * Math.PI * r;
-  const gapSize = 40;
+  const gapSize = 42;
   const dashArray = `${circumference - gapSize} ${gapSize}`;
   const closedDashArray = `${circumference} 0`;
 
   return (
     <motion.div
-      className="flex-1 flex flex-col items-center justify-center relative cursor-pointer select-none"
+      className="flex-1 flex flex-col items-center justify-center gap-8 cursor-pointer select-none px-6"
       onClick={handleTap}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.6 }}
+      style={{ background: "hsl(220 13% 11%)" }}
     >
-      {/* Subtle blur-then-focus atmosphere layer */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        initial={{ backdropFilter: "blur(12px)" }}
-        animate={{ backdropFilter: phase === "forming" ? "blur(8px)" : "blur(0px)" }}
-        transition={{ duration: 2.4, ease: "easeOut" }}
-      />
-
-      {/* Partner + self glimmers (forming phase) */}
+      {/* Partner info card */}
       <AnimatePresence>
-        {phase === "forming" && (
+        {partner && (phase === "forming" || phase === "pulse") && (
           <motion.div
-            className="absolute inset-0 flex items-end justify-center pb-24 gap-[40vw] pointer-events-none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex flex-col items-center gap-3"
           >
-            <motion.div
-              animate={{ opacity: [0.2, 0.5, 0.2] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="w-1 h-1 rounded-full bg-foreground/40"
-            />
-            <motion.div
-              animate={{ opacity: [0.2, 0.5, 0.2] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-              className="w-1 h-1 rounded-full bg-foreground/40"
-            />
+            <Avatar name={partner.displayName} avatarUrl={partner.avatarUrl} size={56} />
+            <div className="text-center">
+              <p className="text-base font-serif text-white">{partner.displayName}</p>
+              {partner.icebreaker && (
+                <p
+                  className="text-sm font-serif italic mt-1 max-w-xs"
+                  style={{ color: "hsl(240 4% 60%)" }}
+                >
+                  "{partner.icebreaker}"
+                </p>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Central area */}
-      <div className="flex flex-col items-center gap-10 relative z-10">
+      {/* Forming text */}
+      <AnimatePresence mode="wait">
+        {phase === "forming" && (
+          <motion.p
+            key="forming"
+            className="font-mono text-xs uppercase tracking-widest"
+            style={{ color: "hsl(240 4% 45%)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+          >
+            A room is forming…
+          </motion.p>
+        )}
+      </AnimatePresence>
 
-        {/* Forming text */}
-        <AnimatePresence mode="wait">
-          {phase === "forming" && (
-            <motion.p
-              key="forming-text"
-              className="font-mono text-xs uppercase tracking-[0.3em] text-foreground/40"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
+      {/* Latch Pulse */}
+      <AnimatePresence>
+        {(phase === "pulse" || phase === "resolved") && (
+          <motion.div
+            key="pulse"
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="relative flex items-center justify-center"
+          >
+            <motion.svg
+              width="100"
+              height="100"
+              viewBox="0 0 100 100"
+              className="overflow-visible"
+              animate={
+                phase === "pulse"
+                  ? { scale: [1, 1.06, 1], opacity: [0.5, 0.85, 0.5] }
+                  : { scale: 1, opacity: 1 }
+              }
+              transition={
+                phase === "pulse"
+                  ? { duration: 3.2, repeat: Infinity, ease: "easeInOut" }
+                  : { duration: 0.5 }
+              }
             >
-              A room is forming…
-            </motion.p>
-          )}
-        </AnimatePresence>
+              <motion.circle
+                cx="50"
+                cy="50"
+                r={r}
+                fill="none"
+                stroke="hsl(211 100% 62%)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeDashoffset={-gapSize / 2}
+                animate={{
+                  strokeDasharray: phase === "resolved" ? closedDashArray : dashArray,
+                  opacity: phase === "resolved" ? 1 : 0.6,
+                }}
+                transition={{ duration: 0.7, ease: "easeInOut" }}
+              />
+            </motion.svg>
 
-        {/* The Latch Pulse — broken circle */}
-        <AnimatePresence>
-          {(phase === "pulse" || phase === "resolved") && (
-            <motion.div
-              key="latch-pulse"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-              className="relative flex items-center justify-center"
-            >
-              <motion.svg
-                width="100"
-                height="100"
-                viewBox="0 0 100 100"
-                className="overflow-visible"
-                animate={
-                  phase === "pulse"
-                    ? { scale: [1, 1.055, 1], opacity: [0.45, 0.75, 0.45] }
-                    : { scale: 1, opacity: 1 }
-                }
-                transition={
-                  phase === "pulse"
-                    ? { duration: 3.6, repeat: Infinity, ease: "easeInOut" }
-                    : { duration: 0.6 }
-                }
-              >
-                <motion.circle
-                  cx="50"
-                  cy="50"
-                  r={r}
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  className="text-foreground/50"
-                  strokeLinecap="round"
-                  strokeDashoffset={-gapSize / 2}
-                  animate={{
-                    strokeDasharray: phase === "resolved" ? closedDashArray : dashArray,
-                    opacity: phase === "resolved" ? 0.9 : 0.5,
-                  }}
-                  transition={{ duration: 0.9, ease: "easeInOut" }}
+            <AnimatePresence>
+              {phase === "resolved" && (
+                <motion.div
+                  className="absolute w-2 h-2 rounded-full"
+                  style={{ background: "hsl(211 100% 62%)" }}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
                 />
-              </motion.svg>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Lock snap indicator on resolve */}
-              <AnimatePresence>
-                {phase === "resolved" && (
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center"
-                    initial={{ opacity: 0, scale: 0.7 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-                  >
-                    <div className="w-1 h-1 bg-foreground/60 rounded-full" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Resolved messages */}
+      <AnimatePresence>
+        {phase === "resolved" && (
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            {resolvedMode === "first" && (
+              <p className="font-mono text-xs uppercase tracking-widest" style={{ color: "hsl(211 100% 72%)" }}>
+                You are first in this room.
+              </p>
+            )}
+            {resolvedMode === "shared" && (
+              <p className="font-serif italic text-lg text-white text-center max-w-sm">
+                {prompt}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Partner icebreaker — visible during pulse phase */}
-        <AnimatePresence>
-          {phase === "pulse" && partner?.icebreaker && (
-            <motion.p
-              key="icebreaker"
-              className="font-serif italic text-foreground/30 text-center max-w-xs text-base"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1.2, delay: 1.5 }}
-            >
-              "{partner.icebreaker}"
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        {/* Resolved state messages */}
-        <AnimatePresence>
-          {phase === "resolved" && resolvedMode === "first" && (
-            <motion.p
-              key="first-text"
-              className="font-mono text-xs uppercase tracking-[0.3em] text-foreground/60"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-            >
-              You are first in this room.
-            </motion.p>
-          )}
-
-          {phase === "resolved" && resolvedMode === "shared" && (
-            <motion.p
-              key="shared-text"
-              className="font-serif italic text-foreground/50 text-center max-w-sm text-lg"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 1, delay: 0.6 }}
-            >
-              {prompt}
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        {/* Tap hint — appears after 4s in pulse phase, disappears if tapped */}
-        <AnimatePresence>
-          {phase === "pulse" && !hasTapped && (
-            <motion.p
-              key="tap-hint"
-              className="font-mono text-[10px] uppercase tracking-[0.25em] text-foreground/20 absolute -bottom-16"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 1, delay: 4 }}
-            >
-              tap to signal presence
-            </motion.p>
-          )}
-          {phase === "pulse" && hasTapped && (
-            <motion.p
-              key="tapped-hint"
-              className="font-mono text-[10px] uppercase tracking-[0.25em] text-foreground/30 absolute -bottom-16"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              present
-            </motion.p>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* Tap hint */}
+      <AnimatePresence>
+        {phase === "pulse" && (
+          <motion.p
+            key={hasTapped ? "tapped" : "hint"}
+            className="font-mono text-[11px] uppercase tracking-widest absolute bottom-16"
+            style={{ color: hasTapped ? "hsl(211 100% 62%)" : "hsl(240 4% 32%)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, delay: hasTapped ? 0 : 4 }}
+          >
+            {hasTapped ? "present" : "tap to signal presence"}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

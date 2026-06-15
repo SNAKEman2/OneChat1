@@ -18,53 +18,90 @@ export default function Splash() {
 
   useEffect(() => {
     if (authLoading || (isAuthenticated && profileLoading)) return;
-
-    if (!isAuthenticated) {
-      // Stay on splash, show login
-      return;
-    }
-
+    if (!isAuthenticated) return;
     if (isAuthenticated && !profile) {
-      const timer = setTimeout(() => setLocation("/setup"), 2000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setLocation("/setup"), 1200);
+      return () => clearTimeout(t);
     }
-
     if (isAuthenticated && profile) {
-      const timer = setTimeout(() => setLocation("/room"), 2000);
-      return () => clearTimeout(timer);
+      const t = setTimeout(() => setLocation("/room"), 1200);
+      return () => clearTimeout(t);
     }
-
     return undefined;
   }, [isAuthenticated, authLoading, profile, profileLoading, setLocation]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6">
+      {/* Logo mark */}
       <motion.div
-        className="w-[1px] h-32 bg-foreground/40 origin-center"
-        animate={{
-          scaleY: [1, 1.5, 1],
-          opacity: [0.3, 0.7, 0.3],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="flex flex-col items-center gap-5"
+      >
+        <div
+          className="w-20 h-20 flex items-center justify-center rounded-[22px]"
+          style={{ background: "hsl(211 100% 52%)" }}
+        >
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <path
+              d="M20 4C11.163 4 4 10.716 4 19c0 3.48 1.23 6.688 3.276 9.22L5.5 33.5l5.64-2.16C13.4 32.4 16.6 33 20 33c8.837 0 16-6.716 16-14S28.837 4 20 4z"
+              fill="white"
+              fillOpacity="0.95"
+            />
+            <circle cx="13" cy="19" r="2" fill="hsl(211 100% 52%)" />
+            <circle cx="20" cy="19" r="2" fill="hsl(211 100% 52%)" />
+            <circle cx="27" cy="19" r="2" fill="hsl(211 100% 52%)" />
+          </svg>
+        </div>
+
+        <div className="text-center">
+          <h1 className="text-4xl font-serif font-medium text-white tracking-tight">
+            OneChat
+          </h1>
+          <p className="text-sm mt-1.5" style={{ color: "hsl(240 4% 55%)" }}>
+            One conversation. One person. Every day.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Auth button */}
       {!authLoading && !isAuthenticated && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2, duration: 1 }}
-          className="absolute bottom-24"
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="flex flex-col items-center gap-3 w-full max-w-xs"
         >
           <button
-            onClick={() => login()}
-            className="text-foreground/60 hover:text-foreground transition-colors tracking-widest text-sm font-mono uppercase cursor-pointer bg-transparent border-none outline-none"
+            onClick={login}
+            className="w-full py-3.5 rounded-xl text-white font-mono text-sm font-medium tracking-wide transition-opacity active:opacity-80"
+            style={{ background: "hsl(211 100% 52%)" }}
           >
-            Enter
+            Sign in with Replit
           </button>
+          <p className="text-xs text-center" style={{ color: "hsl(240 4% 45%)" }}>
+            Free · No ads · One match per day
+          </p>
+        </motion.div>
+      )}
+
+      {/* Loading state */}
+      {(authLoading || (isAuthenticated && profileLoading)) && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex gap-1.5"
+        >
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "hsl(240 4% 55%)" }}
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
         </motion.div>
       )}
     </div>

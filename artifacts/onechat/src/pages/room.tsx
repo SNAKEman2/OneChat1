@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
   useGetTodayMatch,
@@ -17,7 +17,51 @@ import { useWebsocket } from "@/hooks/use-websocket";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
 import Ignition from "@/components/ignition";
+import { format } from "date-fns";
 
+/* ─── Shared Avatar ─────────────────────────────────────────── */
+function Avatar({
+  name,
+  avatarUrl,
+  size = 36,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  size?: number;
+}) {
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className="rounded-full object-cover flex-shrink-0"
+        style={{ width: size, height: size }}
+        onError={(e) => (e.currentTarget.style.display = "none")}
+      />
+    );
+  }
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <div
+      className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-mono font-medium"
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.33,
+        background: "hsl(211 60% 38%)",
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
+/* ─── Root Page ──────────────────────────────────────────────── */
 export default function Room() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -32,21 +76,32 @@ export default function Room() {
       queryKey: getGetTodayMatchQueryKey(),
       refetchInterval: (query) => {
         const status = query.state.data?.status;
-        return status === "waiting" ? 10000 : false;
+        return status === "waiting" ? 8000 : false;
       },
     },
   });
 
   useEffect(() => {
-    if (matchState?.status === "no_profile") {
-      setLocation("/setup");
-    }
+    if (matchState?.status === "no_profile") setLocation("/setup");
   }, [matchState, setLocation]);
 
   if (matchLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-1 h-1 bg-foreground/20 rounded-full animate-pulse" />
+      <div
+        className="flex-1 flex items-center justify-center"
+        style={{ background: "hsl(220 13% 11%)" }}
+      >
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "hsl(240 4% 40%)" }}
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+            />
+          ))}
+        </div>
       </div>
     );
   }
@@ -56,19 +111,7 @@ export default function Room() {
   }
 
   if (matchState?.status === "ended" || matchState?.status === "blocked") {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative filter grayscale">
-        <h1 className="text-4xl font-serif text-foreground/40 mb-12">
-          This room has closed.
-        </h1>
-        <button
-          onClick={() => setLocation("/gallery")}
-          className="text-foreground/50 hover:text-foreground transition-colors font-mono uppercase tracking-widest text-sm"
-        >
-          View memories
-        </button>
-      </div>
-    );
+    return <EndedRoom matchState={matchState} />;
   }
 
   if (matchState?.status === "active" && matchState.matchId) {
@@ -78,64 +121,173 @@ export default function Room() {
   return null;
 }
 
+/* ─── Lounge (waiting for match) ────────────────────────────── */
 function Lounge({ profile }: { profile: any }) {
+  const [, setLocation] = useLocation();
   const [icebreaker, setIcebreaker] = useState(profile?.icebreaker || "");
-  const [isEditing, setIsEditing] = useState(false);
+  const [editing, setEditing] = useState(false);
   const updateProfile = useUpdateMyProfile();
 
   const handleUpdate = () => {
-    if (icebreaker !== profile?.icebreaker) {
-      updateProfile.mutate({ data: { icebreaker } });
+    if (icebreaker.trim() && icebreaker !== profile?.icebreaker) {
+      updateProfile.mutate({ data: { icebreaker: icebreaker.trim() } });
     }
-    setIsEditing(false);
+    setEditing(false);
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-lg mx-auto w-full relative">
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-        animate={{ opacity: [0.1, 0.3, 0.1] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+    <div
+      className="flex-1 flex flex-col"
+      style={{ background: "hsl(220 13% 11%)" }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-5 pt-14 pb-4"
+        style={{ borderBottom: "1px solid hsl(240 4% 22%)" }}
       >
-        <div className="w-64 h-64 border border-foreground/10 rounded-full" />
-      </motion.div>
-
-      <p className="font-mono text-xs text-foreground/40 uppercase tracking-widest mb-16">
-        The Lounge
-      </p>
-
-      <div className="text-center w-full relative z-10">
-        <p className="text-sm font-mono text-foreground/40 mb-4">
-          Your current icebreaker:
-        </p>
-
-        {isEditing ? (
-          <input
-            type="text"
-            value={icebreaker}
-            onChange={(e) => setIcebreaker(e.target.value)}
-            onBlur={handleUpdate}
-            onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
-            autoFocus
-            className="w-full bg-transparent border-none outline-none text-2xl font-serif text-foreground text-center"
-          />
-        ) : (
-          <p
-            className="text-2xl font-serif text-foreground cursor-pointer opacity-80 hover:opacity-100 transition-opacity"
-            onClick={() => setIsEditing(true)}
-          >
-            {icebreaker || "No icebreaker set"}
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          {profile && (
+            <Avatar
+              name={profile.displayName}
+              avatarUrl={profile.avatarUrl}
+              size={36}
+            />
+          )}
+          <div>
+            <p className="text-base font-serif font-medium text-white">
+              {profile?.displayName ?? "You"}
+            </p>
+            <p className="text-xs font-mono" style={{ color: "hsl(240 4% 55%)" }}>
+              OneChat
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => setLocation("/gallery")}
+          className="font-mono text-xs uppercase tracking-widest transition-opacity active:opacity-60"
+          style={{ color: "hsl(240 4% 45%)" }}
+        >
+          Memories
+        </button>
       </div>
 
-      <p className="absolute bottom-24 font-mono text-xs text-foreground/30">
-        Waiting for a match...
-      </p>
+      {/* Body */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-8">
+        {/* Pulsing search indicator */}
+        <div className="flex flex-col items-center gap-5">
+          <motion.div
+            className="w-16 h-16 rounded-full flex items-center justify-center"
+            style={{ background: "hsl(240 5% 17%)" }}
+            animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path
+                d="M14 3C8.477 3 4 7.477 4 13c0 2.2.713 4.24 1.92 5.9L4.5 23l4.36-1.66A9.944 9.944 0 0014 23c5.523 0 10-4.477 10-10S19.523 3 14 3z"
+                stroke="hsl(211 100% 62%)"
+                strokeWidth="1.5"
+                fill="none"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </motion.div>
+
+          <div className="text-center">
+            <p className="text-base font-serif text-white">Finding your match…</p>
+            <p
+              className="text-sm font-mono mt-1"
+              style={{ color: "hsl(240 4% 45%)" }}
+            >
+              You'll be matched with one person today
+            </p>
+          </div>
+        </div>
+
+        {/* Icebreaker card */}
+        <div
+          className="w-full max-w-sm rounded-2xl p-5"
+          style={{ background: "hsl(240 5% 17%)", border: "1px solid hsl(240 4% 22%)" }}
+        >
+          <p
+            className="text-xs font-mono uppercase tracking-widest mb-3"
+            style={{ color: "hsl(240 4% 45%)" }}
+          >
+            Your icebreaker
+          </p>
+          {editing ? (
+            <input
+              type="text"
+              value={icebreaker}
+              onChange={(e) => setIcebreaker(e.target.value)}
+              onBlur={handleUpdate}
+              onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
+              autoFocus
+              maxLength={280}
+              className="w-full bg-transparent text-white font-serif text-base outline-none"
+            />
+          ) : (
+            <button
+              onClick={() => setEditing(true)}
+              className="w-full text-left text-base font-serif text-white"
+            >
+              {icebreaker || (
+                <span style={{ color: "hsl(240 4% 40%)" }}>
+                  Tap to add an icebreaker…
+                </span>
+              )}
+            </button>
+          )}
+          <p className="text-xs font-mono mt-3" style={{ color: "hsl(240 4% 35%)" }}>
+            Tap to edit · shown to your match
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
 
+/* ─── Ended Room ─────────────────────────────────────────────── */
+function EndedRoom({ matchState }: { matchState: any }) {
+  const [, setLocation] = useLocation();
+  return (
+    <div
+      className="flex-1 flex flex-col items-center justify-center gap-6 px-6 text-center"
+      style={{ background: "hsl(220 13% 11%)" }}
+    >
+      <div
+        className="w-16 h-16 rounded-full flex items-center justify-center"
+        style={{ background: "hsl(240 5% 17%)" }}
+      >
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="11" stroke="hsl(240 4% 45%)" strokeWidth="1.5" />
+          <path
+            d="M10 10l8 8M18 10l-8 8"
+            stroke="hsl(240 4% 45%)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
+      <div>
+        <p className="text-lg font-serif text-white">
+          {matchState.status === "blocked" ? "Room closed." : "This room has ended."}
+        </p>
+        <p className="text-sm font-mono mt-1.5" style={{ color: "hsl(240 4% 45%)" }}>
+          A new match awaits tomorrow at midnight UTC.
+        </p>
+      </div>
+      <button
+        onClick={() => setLocation("/gallery")}
+        className="px-6 py-3 rounded-xl font-mono text-sm text-white transition-opacity active:opacity-70"
+        style={{ background: "hsl(240 5% 17%)", border: "1px solid hsl(240 4% 28%)" }}
+      >
+        View memories
+      </button>
+    </div>
+  );
+}
+
+/* ─── Active Room ────────────────────────────────────────────── */
 type IgnitionMode = "first" | "second" | "shared";
 
 function ActiveRoom({
@@ -147,66 +299,54 @@ function ActiveRoom({
 }) {
   const [, setLocation] = useLocation();
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Ignition gate
   const [ignitionMode, setIgnitionMode] = useState<IgnitionMode | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const sendMessage = useSendMessage();
   const endMatch = useEndMatch();
 
   const { data: initialMessages } = useGetMatchMessages(matchState.matchId, {
-    query: {
-      queryKey: getGetMatchMessagesQueryKey(matchState.matchId),
-    },
+    query: { queryKey: getGetMatchMessagesQueryKey(matchState.matchId) },
   });
 
-  const {
-    messages: liveMessages,
-    partnerTyping,
-    sendTyping,
-    ignitionResult,
-    tapIgnition,
-  } = useWebsocket(matchState.matchId, initialMessages || [], userId);
+  const { messages, partnerTyping, sendTyping, ignitionResult, tapIgnition } =
+    useWebsocket(matchState.matchId, initialMessages || [], userId);
 
   const handleIgnitionDone = useCallback((mode: IgnitionMode) => {
     setIgnitionMode(mode);
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
-  // Time remaining spine
-  const [timeRatio, setTimeRatio] = useState(1);
+  // Time remaining for the room
+  const [timeLeft, setTimeLeft] = useState("");
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
-    const updateTime = () => {
+    const update = () => {
       if (!matchState.expiresAt) return;
-      const now = new Date().getTime();
+      const now = Date.now();
       const end = new Date(matchState.expiresAt).getTime();
-      const start = new Date(
-        matchState.matchDate || Date.now() - 86400000
-      ).getTime();
-
-      if (now >= end) {
-        setTimeRatio(0);
-        setIsLocked(true);
-      } else {
-        setTimeRatio(Math.max(0, (end - now) / (end - start)));
-      }
+      const diff = end - now;
+      if (diff <= 0) { setIsLocked(true); setTimeLeft("Expired"); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setTimeLeft(h > 0 ? `${h}h ${m}m left` : `${m}m left`);
     };
-
-    updateTime();
-    const interval = setInterval(updateTime, 60000);
-    return () => clearInterval(interval);
-  }, [matchState.expiresAt, matchState.matchDate]);
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, [matchState.expiresAt]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [liveMessages, partnerTyping]);
+  }, [messages, partnerTyping]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLocked) return;
-    sendMessage.mutate({ matchId: matchState.matchId, data: { content: input } });
+    const text = input.trim();
+    if (!text || isLocked) return;
+    sendMessage.mutate({ matchId: matchState.matchId, data: { content: text } });
     setInput("");
     sendTyping(false);
   };
@@ -216,7 +356,7 @@ function ActiveRoom({
     sendTyping(e.target.value.length > 0);
   };
 
-  // If ignition not yet resolved, show the ritual
+  // Show ignition first
   if (!ignitionMode) {
     return (
       <AnimatePresence mode="wait">
@@ -232,173 +372,256 @@ function ActiveRoom({
     );
   }
 
-  if (isLocked) {
-    return (
-      <motion.div
-        initial={{ filter: "grayscale(0%)" }}
-        animate={{ filter: "grayscale(100%)" }}
-        transition={{ duration: 1.5 }}
-        className="flex-1 flex flex-col items-center justify-center relative bg-background"
-      >
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.5, duration: 1 }}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-50 backdrop-blur-sm"
-        >
-          <p className="font-serif text-2xl mb-8">This room has closed.</p>
-          <button
-            onClick={() => setLocation("/gallery")}
-            className="font-mono text-sm tracking-widest uppercase text-foreground/60 hover:text-foreground"
-          >
-            View memory
-          </button>
-        </motion.div>
-
-        <div className="absolute inset-0 opacity-10 overflow-hidden pointer-events-none">
-          {liveMessages.slice(-5).map((m) => (
-            <div key={m.id} className="my-8 text-center font-serif text-xl">
-              {m.content}
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    );
-  }
+  const partner = matchState.partner;
 
   return (
     <motion.div
-      className="flex-1 flex flex-col relative w-full h-[100dvh]"
+      className="flex-1 flex flex-col h-full"
+      style={{ background: "hsl(220 13% 11%)" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.5 }}
     >
-      {/* Time spine */}
-      <div className="absolute top-0 left-0 right-0 h-[1px] bg-foreground/5" />
-      <motion.div
-        className="absolute top-0 left-0 h-[1px] bg-foreground/20"
-        style={{ width: `${timeRatio * 100}%` }}
-        layout
-      />
-
-      <div className="flex-1 overflow-y-auto px-6 py-24 flex flex-col gap-12 w-full max-w-3xl mx-auto hide-scrollbar">
-        {/* Partner reveal */}
-        <div className="flex flex-col items-center justify-center mb-8 opacity-40">
-          {matchState.partner?.avatarUrl && (
-            <img
-              src={matchState.partner.avatarUrl}
-              alt={matchState.partner.displayName}
-              className="w-10 h-10 rounded-none filter grayscale opacity-60 mb-4 object-cover"
+      {/* ── Header ── */}
+      <div
+        className="flex items-center gap-3 px-4 pt-14 pb-3"
+        style={{ borderBottom: "1px solid hsl(240 4% 22%)", background: "hsl(240 5% 17%)" }}
+      >
+        <button
+          onClick={() => setLocation("/gallery")}
+          style={{ color: "hsl(211 100% 62%)" }}
+          className="mr-1 flex-shrink-0 transition-opacity active:opacity-60"
+        >
+          <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
+            <path
+              d="M8 1L2 7.5 8 14"
+              stroke="hsl(211 100% 62%)"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-          )}
-          <p className="font-mono text-xs uppercase tracking-widest">
-            {matchState.partner?.displayName}
+          </svg>
+        </button>
+
+        {partner && (
+          <Avatar name={partner.displayName} avatarUrl={partner.avatarUrl} size={38} />
+        )}
+
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-serif font-medium text-white truncate">
+            {partner?.displayName ?? "Your match"}
+          </p>
+          <p className="text-xs font-mono" style={{ color: "hsl(240 4% 50%)" }}>
+            {isLocked ? "Room closed" : timeLeft}
           </p>
         </div>
 
-        {/* First-in-room context line */}
-        {ignitionMode === "first" && liveMessages.length === 0 && (
-          <motion.p
-            className="font-mono text-[10px] uppercase tracking-[0.25em] text-foreground/25 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2, delay: 0.4 }}
+        {/* End room */}
+        {!isLocked && (
+          <button
+            onClick={() => {
+              if (window.confirm("End this room early?")) {
+                endMatch.mutate({ matchId: matchState.matchId, data: { block: false } });
+              }
+            }}
+            className="text-[11px] font-mono uppercase tracking-widest flex-shrink-0 transition-opacity active:opacity-60"
+            style={{ color: "hsl(240 4% 38%)" }}
           >
-            You are first in this room.
-          </motion.p>
+            End
+          </button>
+        )}
+      </div>
+
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 flex flex-col gap-1.5">
+
+        {/* Partner icebreaker as a system message */}
+        {partner?.icebreaker && (
+          <div className="flex justify-center py-3">
+            <p
+              className="text-xs font-serif italic text-center max-w-xs px-3 py-2 rounded-xl"
+              style={{
+                color: "hsl(240 4% 55%)",
+                background: "hsl(240 5% 17%)",
+              }}
+            >
+              {partner.icebreaker}
+            </p>
+          </div>
         )}
 
-        {/* Messages */}
-        <div className="flex flex-col gap-16">
-          <AnimatePresence initial={false}>
-            {liveMessages.map((msg, index) => {
-              const isMe = msg.senderId === userId;
-              // First-line rule: first message in the conversation
-              const isFirstLine = index === 0;
-              return (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: isFirstLine ? 12 : 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: isFirstLine ? 1.2 : 0.4,
-                    ease: "easeOut",
-                  }}
-                  className={`w-full flex ${isMe ? "justify-end" : "justify-start"}`}
-                >
-                  <p
-                    className={`font-serif max-w-[80%] leading-relaxed
-                      ${isFirstLine ? "text-2xl sm:text-3xl tracking-wide" : "text-xl sm:text-2xl"}
-                      ${isMe ? "text-right opacity-90" : "text-left opacity-70"}
-                    `}
-                  >
-                    {msg.content}
-                  </p>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+        {/* First-in-room notice */}
+        {ignitionMode === "first" && messages.length === 0 && (
+          <motion.div
+            className="flex justify-center py-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+          >
+            <p
+              className="text-[11px] font-mono uppercase tracking-widest"
+              style={{ color: "hsl(211 100% 62%)" }}
+            >
+              You are first in this room.
+            </p>
+          </motion.div>
+        )}
 
-          {/* Typing indicator */}
-          <AnimatePresence>
-            {partnerTyping && (
+        {/* Message bubbles */}
+        <AnimatePresence initial={false}>
+          {messages.map((msg, index) => {
+            const isMe = msg.senderId === userId;
+            const isFirst = index === 0;
+            const showTime =
+              index === messages.length - 1 ||
+              new Date(messages[index + 1]?.createdAt).getTime() -
+                new Date(msg.createdAt).getTime() >
+                5 * 60 * 1000;
+
+            return (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="w-full flex justify-start h-8"
+                key={msg.id}
+                initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: isFirst ? 0.8 : 0.25,
+                  ease: "easeOut",
+                }}
+                className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
               >
-                <motion.div
-                  animate={{
-                    scale: [1, 1.05, 1],
-                    opacity: [0.1, 0.3, 0.1],
+                <div
+                  className={isMe ? "bubble-mine" : "bubble-theirs"}
+                  style={{
+                    padding: "10px 14px",
+                    maxWidth: "78%",
+                    fontSize: isFirst ? "1.2rem" : "1rem",
+                    lineHeight: 1.45,
+                    fontFamily: "var(--font-serif)",
+                    letterSpacing: isFirst ? "0.01em" : "normal",
                   }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                  className="w-32 h-full bg-gradient-to-r from-foreground/10 to-transparent blur-xl"
-                />
+                >
+                  {msg.content}
+                </div>
+                {showTime && (
+                  <p
+                    className="text-[10px] font-mono mt-1 mx-1"
+                    style={{ color: "hsl(240 4% 40%)" }}
+                  >
+                    {format(new Date(msg.createdAt), "HH:mm")}
+                  </p>
+                )}
               </motion.div>
-            )}
-          </AnimatePresence>
+            );
+          })}
+        </AnimatePresence>
 
-          <div ref={messagesEndRef} className="h-24" />
-        </div>
+        {/* Typing indicator */}
+        <AnimatePresence>
+          {partnerTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-start"
+            >
+              <div
+                className="bubble-theirs flex items-center gap-1"
+                style={{ padding: "12px 16px" }}
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "hsl(240 4% 65%)" }}
+                    animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.18 }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Lock state overlay */}
+        <AnimatePresence>
+          {isLocked && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-center py-4"
+            >
+              <div
+                className="px-4 py-2 rounded-xl text-center"
+                style={{ background: "hsl(240 5% 17%)" }}
+              >
+                <p className="text-xs font-mono" style={{ color: "hsl(240 4% 55%)" }}>
+                  This room closed at midnight UTC.
+                </p>
+                <button
+                  onClick={() => setLocation("/gallery")}
+                  className="text-xs font-mono mt-1 transition-opacity"
+                  style={{ color: "hsl(211 100% 62%)" }}
+                >
+                  View in Memories →
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      {/* Input area */}
-      <div className="p-6 w-full max-w-3xl mx-auto relative bg-gradient-to-t from-background via-background to-transparent pt-12">
-        <form onSubmit={handleSend} className="w-full">
-          <input
-            type="text"
-            value={input}
-            onChange={handleTyping}
-            placeholder={
-              ignitionMode === "second" && liveMessages.length === 0
-                ? ""
-                : "Type…"
-            }
-            autoFocus={ignitionMode === "first"}
-            className="w-full bg-transparent border-none outline-none font-serif text-xl placeholder:text-foreground/20 text-foreground transition-opacity focus:opacity-100 opacity-60"
-            disabled={isLocked}
-          />
-        </form>
-      </div>
-
-      {/* End match */}
-      <div className="absolute top-6 right-6">
-        <button
-          onClick={() => {
-            if (window.confirm("End this room early?")) {
-              endMatch.mutate({
-                matchId: matchState.matchId,
-                data: { block: false },
-              });
-            }
+      {/* ── Input bar ── */}
+      {!isLocked && (
+        <div
+          className="flex items-end gap-3 px-4 py-3"
+          style={{
+            borderTop: "1px solid hsl(240 4% 22%)",
+            background: "hsl(240 5% 17%)",
           }}
-          className="text-[10px] font-mono uppercase tracking-widest text-foreground/20 hover:text-foreground/60 transition-colors"
         >
-          End Room
-        </button>
-      </div>
+          <div
+            className="flex-1 flex items-center rounded-full px-4 py-2.5"
+            style={{
+              background: "hsl(240 4% 23%)",
+              border: "1px solid hsl(240 4% 28%)",
+              minHeight: 44,
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={handleTyping}
+              onKeyDown={(e) => e.key === "Enter" && handleSend(e)}
+              placeholder="Message…"
+              className="flex-1 bg-transparent text-white text-base font-serif outline-none placeholder-opacity-30"
+              style={{
+                fontFamily: "var(--font-serif)",
+                caretColor: "hsl(211 100% 62%)",
+              }}
+              disabled={isLocked}
+            />
+          </div>
+
+          <motion.button
+            onClick={handleSend}
+            disabled={!input.trim() || isLocked}
+            className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity disabled:opacity-30"
+            style={{ background: "hsl(211 100% 52%)" }}
+            whileTap={{ scale: 0.9 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path
+                d="M16 9L2 2l3 7-3 7 14-7z"
+                fill="white"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </motion.button>
+        </div>
+      )}
     </motion.div>
   );
 }
