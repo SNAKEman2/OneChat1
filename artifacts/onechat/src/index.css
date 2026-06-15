@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=JetBrains+Mono:wght@300;400;500&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --font-sans: 'Cormorant Garamond', serif;
+  --font-serif: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-system: 'JetBrains Mono', monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 43 27% 94%; /* Morning bg #F4F1EA */
+  --foreground: 33 11% 16%; /* Morning fg #2E2A25 */
+  --border: 33 11% 80%;
+  --input: 33 11% 85%;
+  --ring: 33 11% 16%;
+  --card: 43 27% 94%;
+  --card-foreground: 33 11% 16%;
+  --card-border: 33 11% 80%;
+  --popover: 43 27% 94%;
+  --popover-foreground: 33 11% 16%;
+  --popover-border: 33 11% 80%;
+  --primary: 33 11% 16%;
+  --primary-foreground: 43 27% 94%;
+  --secondary: 43 27% 88%;
+  --secondary-foreground: 33 11% 16%;
+  --muted: 43 27% 88%;
+  --muted-foreground: 33 11% 40%;
+  --accent: 36 46% 60%; /* #C8A36A */
+  --accent-foreground: 43 27% 94%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 43 27% 94%;
+  
+  --radius: 0rem;
+  
+  --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+:root[data-time="morning"] {
+  --background: 43 27% 94%; /* #F4F1EA */
+  --foreground: 33 11% 16%; /* #2E2A25 */
+  --muted-foreground: 33 11% 50%;
+  --border: 33 11% 85%;
+}
+
+:root[data-time="day"] {
+  --background: 39 23% 88%; /* #E9E4DB */
+  --foreground: 36 9% 11%; /* #1F1D1A */
+  --muted-foreground: 36 9% 45%;
+  --border: 36 9% 80%;
+}
+
+:root[data-time="evening"] {
+  --background: 21 20% 14%; /* #2A211C */
+  --foreground: 36 46% 60%; /* #C8A36A */
+  --muted-foreground: 36 46% 40%;
+  --border: 21 20% 25%;
+}
+
+:root[data-time="midnight"] {
+  --background: 30 8% 5%; /* #0E0D0C */
+  --foreground: 30 6% 34%; /* #5C5752 */
+  --muted-foreground: 30 6% 25%;
+  --border: 30 8% 12%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground transition-colors duration-[3000ms] ease-out;
+  }
+  
+}

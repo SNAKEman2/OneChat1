@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "OneChat"
+version = "1.0.0"
+id = "artifacts/onechat"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19116
+
+[services.development]
+run = "pnpm --filter @workspace/onechat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/onechat", "run", "build" ]
+publicDir = "artifacts/onechat/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19116"
+BASE_PATH = "/"
