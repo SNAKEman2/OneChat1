@@ -6,3 +6,15 @@ id = "sgX9-tiIPK8oQjKgBr7x0"
 uri = "file://ONECHAT_DOCS.md"
 type = "text"
 title = "OneChat — Complete Project Documentation"
+
+[[outputs]]
+id = "KT5ZdU_2NpU4L4mH_O0yT"
+uri = "file://onechat-audit.tar.gz"
+type = "unspecified"
+title = "OneChat Audit Package (full source + PROJECT_MAP.md)"
+
+[[outputs]]
+id = "80yPdQKy4D9TPSwSvKPYm"
+uri = "file://PROJECT_MAP.md"
+type = "text"
+title = "PROJECT_MAP.md — Architecture & Audit Document"
