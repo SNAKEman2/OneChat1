@@ -56,9 +56,10 @@ app.use(
 );
 
 app.use(cookieParser());
-// Limit request body to 64kb to prevent memory exhaustion
-app.use(express.json({ limit: "64kb" }));
-app.use(express.urlencoded({ extended: true, limit: "64kb" }));
+// Body limit raised to 800kb to accommodate base64-encoded avatar data URLs (up to ~400k chars
+// of avatar content + JSON framing overhead). Watch this if request volume grows significantly.
+app.use(express.json({ limit: "800kb" }));
+app.use(express.urlencoded({ extended: true, limit: "800kb" }));
 app.use(authMiddleware);
 
 app.use("/api", router);

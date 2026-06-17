@@ -41,11 +41,12 @@ One conversation per person per day. A minimalist PWA where you get exactly one 
 - **Contract-first API** — OpenAPI spec in lib/api-spec drives codegen for React Query hooks and Zod schemas. Always edit the spec before touching routes.
 - **Time-driven color system** — CSS custom properties keyed off `data-time` attribute on `<html>`, set by useTimeOfDay hook. Morning/day/evening/midnight map to warm cream → near-black.
 - **WebSocket presence** — /ws endpoint accepts `?matchId=&userId=` params, maintains in-memory client list, broadcasts typing/presence/message events to match rooms.
-- **Anti-SaaS design** — No chat bubbles, no cards, no navbars. Cormorant Garamond (messages/names) + JetBrains Mono (timestamps/system). Border-radius 0.
+- **Anti-SaaS design** — No chat bubbles, no cards, no navbars. Cormorant Garamond (messages/names) + Inter (message body) + JetBrains Mono (timestamps/system). Border-radius 0.
+- **MatchPartner schema includes userId + lastActive** — the /matches/today response returns the partner's userId (for WS presence lookup) and lastActive timestamp (for inactivity notice). Both are additive fields added to the OpenAPI MatchPartner schema.
 
 ## Product
 
-Users sign in via Replit Auth. They get matched with one person per UTC day. They chat in a minimal "room" with a time-remaining line showing how long until the room expires at midnight UTC. After expiry, rooms become read-only "memories" in the gallery. Users can block partners. Profile setup includes display name, icebreaker, and optional avatar URL (supports GIFs).
+Users sign in via Replit Auth. They get matched with one person per UTC day. They chat in a minimal "room" with a time-remaining line showing how long until the room expires at midnight UTC. After expiry, rooms become read-only "memories" in the gallery. Users can block partners. Profile setup includes display name, icebreaker, and optional avatar URL (supports GIFs). The `/settings` page lets users edit their profile and log out — reachable by tapping their own avatar in the Lounge or Gallery headers.
 
 ## User preferences
 
@@ -58,6 +59,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 - The lib/replit-auth-web package uses `composite: true` to be properly referenced by artifact tsconfigs.
 - The grain texture in index.css uses `opacity` only (no mix-blend-mode) to avoid headless rendering issues.
 - matchesTable expires at UTC midnight — `midnightUTC()` helper in matches.ts computes this dynamically.
+- JSON body limit is 800kb (raised from 64kb to handle base64 avatar data URLs). If traffic grows significantly, consider moving avatar uploads to object storage instead of passing them as JSON.
+- compressImage logic lives in `artifacts/onechat/src/lib/compress-image.ts` and is shared by setup.tsx and settings.tsx. GIFs are passed through uncompressed; other images are cropped square and re-encoded as JPEG at 82% quality, 256×256px.
 
 ## Pointers
 

@@ -128,14 +128,16 @@ workspace/
 │           │   ├── setup.tsx         # Profile creation
 │           │   ├── room.tsx          # Today's chat room (Lounge / Active / Ended)
 │           │   ├── gallery.tsx       # Archive of past conversations
+│           │   ├── settings.tsx      # Edit profile + log out (/settings)
 │           │   └── frozen-room.tsx   # Read-only past conversation
 │           ├── components/
 │           │   └── ignition.tsx      # Room Ignition Ritual component
 │           ├── hooks/
-│           │   ├── use-websocket.ts  # WS client hook (messages, typing, ignition)
+│           │   ├── use-websocket.ts  # WS client hook (messages, typing, presence, ignition)
 │           │   └── use-time-of-day.ts # UTC time → CSS theme attribute
 │           ├── lib/
-│           │   └── query-keys.ts     # React Query key factories
+│           │   ├── query-keys.ts     # React Query key factories
+│           │   └── compress-image.ts # Client-side image compression (shared by setup + settings)
 │           ├── index.css             # Design system, time-driven CSS vars
 │           └── main.tsx              # React root, router
 │
@@ -244,6 +246,17 @@ All endpoints are under `/api`. All require authentication (401 if not signed in
 2. Find candidates: other users with `lastActive` within 24h, not already matched today, not blocked by/blocking you
 3. Pick randomly from up to 10 candidates
 4. Insert match row (DB unique constraint prevents duplicates)
+
+**MatchPartner object** (returned in active/ended match state):
+```json
+{
+  "userId": "string",        // partner's Replit user ID — used for WS presence lookup
+  "displayName": "string",
+  "avatarUrl": "string|null",
+  "icebreaker": "string",
+  "lastActive": "string"     // ISO datetime — used for inactivity notice (>3h offline)
+}
+```
 
 ### Messages
 
@@ -490,7 +503,7 @@ OneChat is designed to deploy on Replit with one click.
 | Input validation on all write endpoints | Zod schemas on profiles, messages, match-end |
 | Message length capped | 2000 characters max |
 | Profile field lengths capped | displayName 50 chars, icebreaker 280 chars, avatarUrl 500 chars |
-| Request body size capped | 64kb limit on all JSON bodies |
+| Request body size capped | 800kb limit on JSON bodies (supports base64 avatar data URLs) |
 | CORS locked in production | Only domains in `REPLIT_DOMAINS` allowed |
 | Session cookies signed | `SESSION_SECRET` required |
 
@@ -517,7 +530,7 @@ OneChat is designed to deploy on Replit with one click.
 | Matchmaking | Simple random selection from 10 candidates — no preference matching |
 | Rate limiting | None — API has no request throttling |
 | Push notifications | None — users must have the app open to see a new match |
-| Avatar hosting | External URLs only — no upload |
+| Avatar hosting | Client-side compressed to JPEG 256px and sent as data URL in JSON body (800kb limit) |
 | WS auth | `userId` param trusted; not session-verified |
 | Ignition state | In-memory only — lost on server restart |
 | Search | No search across past conversations |
@@ -549,9 +562,9 @@ A shared, unambiguous boundary. Everyone's room closes at the same moment regard
 
 The ritual determines who speaks first, not who "wins." The framing matters: *ritual before presence*, not *competition before chat*. Hiding the mechanism makes the conversation feel initiated rather than started.
 
-### Why Cormorant Garamond + JetBrains Mono?
+### Why Cormorant Garamond + Inter + JetBrains Mono?
 
-Cormorant is designed for large display sizes — it's humanist, warm, and literary. JetBrains Mono is the clearest monospace typeface for small UI text. Together they create a "manuscript meets terminal" aesthetic that nothing else in the app ecosystem looks like.
+Cormorant is designed for large display sizes — it's humanist, warm, and literary. Inter is a highly-legible sans-serif optimised for screen text, used for message body content. JetBrains Mono is the clearest monospace typeface for small UI text (timestamps, labels, system messages). Together they create a "manuscript meets terminal" aesthetic: Cormorant for names and decorative elements, Inter for readable prose, Mono for metadata.
 
 ---
 

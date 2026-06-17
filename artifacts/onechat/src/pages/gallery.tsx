@@ -1,6 +1,6 @@
 import { useLocation } from "wouter";
-import { useGetMatchArchive } from "@workspace/api-client-react";
-import { getGetMatchArchiveQueryKey } from "@/lib/query-keys";
+import { useGetMatchArchive, useGetMyProfile } from "@workspace/api-client-react";
+import { getGetMatchArchiveQueryKey, getGetMyProfileQueryKey } from "@/lib/query-keys";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 
@@ -19,10 +19,12 @@ function Avatar({
   name,
   avatarUrl,
   size = 48,
+  colorVar = "hsl(211 60% 38%)",
 }: {
   name: string;
   avatarUrl?: string | null;
   size?: number;
+  colorVar?: string;
 }) {
   if (avatarUrl) {
     return (
@@ -48,7 +50,7 @@ function Avatar({
         width: size,
         height: size,
         fontSize: size * 0.35,
-        background: "hsl(211 60% 38%)",
+        background: colorVar,
       }}
     >
       {initials}
@@ -63,6 +65,10 @@ export default function Gallery() {
     query: { queryKey: getGetMatchArchiveQueryKey() },
   });
 
+  const { data: myProfile } = useGetMyProfile({
+    query: { queryKey: getGetMyProfileQueryKey() },
+  });
+
   return (
     <div
       className="flex-1 flex flex-col h-full"
@@ -73,7 +79,24 @@ export default function Gallery() {
         className="flex items-center justify-between px-5 pt-14 pb-4"
         style={{ borderBottom: "1px solid hsl(240 4% 22%)" }}
       >
-        <h1 className="text-2xl font-serif font-medium text-white">Memories</h1>
+        <div className="flex items-center gap-3">
+          {/* Tappable own avatar → Settings (Item 7) */}
+          {myProfile && (
+            <button
+              onClick={() => setLocation("/settings")}
+              className="flex-shrink-0 transition-opacity active:opacity-70"
+              aria-label="Open settings"
+            >
+              <Avatar
+                name={myProfile.displayName}
+                avatarUrl={myProfile.avatarUrl}
+                size={32}
+                colorVar="var(--accent)"
+              />
+            </button>
+          )}
+          <h1 className="text-2xl font-serif font-medium text-white">Memories</h1>
+        </div>
         <button
           onClick={() => setLocation("/room")}
           className="text-sm font-mono"

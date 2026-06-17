@@ -160,9 +160,11 @@ export const GetTodayMatchResponse = zod.object({
   "status": zod.enum(['active', 'waiting', 'ended', 'blocked', 'no_profile']),
   "matchId": zod.string().nullish(),
   "partner": zod.union([zod.object({
+  "userId": zod.string(),
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
-  "icebreaker": zod.string()
+  "icebreaker": zod.string(),
+  "lastActive": zod.string().nullish()
 }),zod.null()]).optional(),
   "matchDate": zod.string().nullish(),
   "expiresAt": zod.string().nullish()
@@ -184,9 +186,11 @@ export const EndMatchResponse = zod.object({
   "status": zod.enum(['active', 'waiting', 'ended', 'blocked', 'no_profile']),
   "matchId": zod.string().nullish(),
   "partner": zod.union([zod.object({
+  "userId": zod.string(),
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
-  "icebreaker": zod.string()
+  "icebreaker": zod.string(),
+  "lastActive": zod.string().nullish()
 }),zod.null()]).optional(),
   "matchDate": zod.string().nullish(),
   "expiresAt": zod.string().nullish()

@@ -7,8 +7,11 @@
  */
 
 export interface MatchPartner {
+  userId: string;
   displayName: string;
   /** @nullable */
   avatarUrl: string | null;
   icebreaker: string;
+  /** @nullable */
+  lastActive?: string | null;
 }

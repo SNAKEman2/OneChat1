@@ -85,9 +85,11 @@ router.get("/matches/today", async (req, res) => {
         matchId: existingMatch.id,
         partner: partnerProfile
           ? {
+              userId: partnerProfile.userId,
               displayName: partnerProfile.displayName,
               avatarUrl: partnerProfile.avatarUrl,
               icebreaker: partnerProfile.icebreaker,
+              lastActive: partnerProfile.lastActive.toISOString(),
             }
           : null,
         matchDate: existingMatch.matchDate,
@@ -173,9 +175,11 @@ router.get("/matches/today", async (req, res) => {
       matchId: newMatch.id,
       partner: partnerProfile
         ? {
+            userId: partnerProfile.userId,
             displayName: partnerProfile.displayName,
             avatarUrl: partnerProfile.avatarUrl,
             icebreaker: partnerProfile.icebreaker,
+            lastActive: partnerProfile.lastActive.toISOString(),
           }
         : null,
       matchDate: newMatch.matchDate,

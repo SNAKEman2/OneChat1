@@ -11,6 +11,7 @@ import Setup from "@/pages/setup";
 import Room from "@/pages/room";
 import Gallery from "@/pages/gallery";
 import FrozenRoom from "@/pages/frozen-room";
+import Settings from "@/pages/settings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,6 +41,7 @@ function AnimatedRouter() {
           <Route path="/room" component={Room} />
           <Route path="/gallery" component={Gallery} />
           <Route path="/gallery/:matchId" component={FrozenRoom} />
+          <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
       </motion.div>
@@ -48,7 +50,6 @@ function AnimatedRouter() {
 }
 
 function App() {
-  // Initialize time of day theme sync
   useTimeOfDay();
 
   return (

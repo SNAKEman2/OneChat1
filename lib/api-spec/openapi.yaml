@@ -451,14 +451,18 @@ components:
 
     MatchPartner:
       type: object
-      required: [displayName, avatarUrl, icebreaker]
+      required: [userId, displayName, avatarUrl, icebreaker]
       properties:
+        userId:
+          type: string
         displayName:
           type: string
         avatarUrl:
           type: ["string", "null"]
         icebreaker:
           type: string
+        lastActive:
+          type: ["string", "null"]
 
     MatchState:
       type: object

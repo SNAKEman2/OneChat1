@@ -3,36 +3,7 @@ import { useLocation } from "wouter";
 import { useSetupProfile } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
-
-async function compressImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const isGif = file.type === "image/gif";
-    if (isGif) {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-      return;
-    }
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      const SIZE = 256;
-      const canvas = document.createElement("canvas");
-      canvas.width = SIZE;
-      canvas.height = SIZE;
-      const ctx = canvas.getContext("2d")!;
-      const min = Math.min(img.width, img.height);
-      const sx = (img.width - min) / 2;
-      const sy = (img.height - min) / 2;
-      ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
+import { compressImage } from "@/lib/compress-image";
 
 export default function Setup() {
   const [, setLocation] = useLocation();
@@ -43,6 +14,7 @@ export default function Setup() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarData, setAvatarData] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const setupProfile = useSetupProfile();
@@ -56,12 +28,13 @@ export default function Setup() {
     const file = e.target.files?.[0];
     if (!file) return;
     setCompressing(true);
+    setAvatarError(false);
     try {
       const data = await compressImage(file);
       setAvatarPreview(data);
       setAvatarData(data);
     } catch {
-      /* ignore */
+      /* ignore compression errors */
     } finally {
       setCompressing(false);
     }
@@ -156,9 +129,34 @@ export default function Setup() {
               </svg>
             </div>
           </button>
+
           <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
             {avatarPreview ? "Tap to change" : "Upload a photo or GIF"}
           </p>
+
+          {/* Upload error message (Item 1) */}
+          {(setupProfile.isError && avatarData) || avatarError ? (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xs font-mono text-center px-2"
+              style={{ color: "#f38ba8" }}
+            >
+              That file is too large or couldn't be uploaded — try a smaller image or GIF.
+            </motion.p>
+          ) : null}
+
+          {setupProfile.isError && !avatarData && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xs font-mono text-center px-2"
+              style={{ color: "#f38ba8" }}
+            >
+              Something went wrong — please try again.
+            </motion.p>
+          )}
+
           <input
             ref={fileRef}
             type="file"
