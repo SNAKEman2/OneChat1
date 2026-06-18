@@ -25,6 +25,7 @@ import type {
   BeginBrowserLoginParams,
   EndMatchInput,
   ErrorEnvelope,
+  GetMatchMessagesParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   LogoutSuccess,
@@ -1037,20 +1038,29 @@ export function useGetMatchArchive<TData = Awaited<ReturnType<typeof getMatchArc
 
 
 
-export const getGetMatchMessagesUrl = (matchId: string,) => {
+export const getGetMatchMessagesUrl = (matchId: string,
+    params?: GetMatchMessagesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/matches/${matchId}/messages`
+  return stringifiedParams.length > 0 ? `/api/matches/${matchId}/messages?${stringifiedParams}` : `/api/matches/${matchId}/messages`
 }
 
 /**
- * @summary Get all messages for a match
+ * @summary Get messages for a match (supports cursor pagination)
  */
-export const getMatchMessages = async (matchId: string, options?: RequestInit): Promise<Message[]> => {
+export const getMatchMessages = async (matchId: string,
+    params?: GetMatchMessagesParams, options?: RequestInit): Promise<Message[]> => {
 
-  return customFetch<Message[]>(getGetMatchMessagesUrl(matchId),
+  return customFetch<Message[]>(getGetMatchMessagesUrl(matchId,params),
   {
     ...options,
     method: 'GET'
@@ -1063,23 +1073,25 @@ export const getMatchMessages = async (matchId: string, options?: RequestInit): 
 
 
 
-export const getGetMatchMessagesQueryKey = (matchId: string,) => {
+export const getGetMatchMessagesQueryKey = (matchId: string,
+    params?: GetMatchMessagesParams,) => {
     return [
-    `/api/matches/${matchId}/messages`
+    `/api/matches/${matchId}/messages`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetMatchMessagesQueryOptions = <TData = Awaited<ReturnType<typeof getMatchMessages>>, TError = ErrorType<unknown>>(matchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMatchMessagesQueryOptions = <TData = Awaited<ReturnType<typeof getMatchMessages>>, TError = ErrorType<unknown>>(matchId: string,
+    params?: GetMatchMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMatchMessagesQueryKey(matchId);
+  const queryKey =  queryOptions?.queryKey ?? getGetMatchMessagesQueryKey(matchId,params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchMessages>>> = ({ signal }) => getMatchMessages(matchId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchMessages>>> = ({ signal }) => getMatchMessages(matchId,params, { signal, ...requestOptions });
 
 
 
@@ -1093,15 +1105,16 @@ export type GetMatchMessagesQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get all messages for a match
+ * @summary Get messages for a match (supports cursor pagination)
  */
 
 export function useGetMatchMessages<TData = Awaited<ReturnType<typeof getMatchMessages>>, TError = ErrorType<unknown>>(
- matchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ matchId: string,
+    params?: GetMatchMessagesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMatchMessagesQueryOptions(matchId,options)
+  const queryOptions = getGetMatchMessagesQueryOptions(matchId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

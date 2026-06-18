@@ -19,9 +19,11 @@
   --font-serif: 'Cormorant Garamond', Georgia, serif;
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Section B — official radius scale */
+  --radius-sm:   10px;
+  --radius-md:   16px;
+  --radius-lg:   24px;
+  --radius-xl:   32px;
   --radius-full: 9999px;
 }
 
@@ -29,24 +31,24 @@
 :root {
   --accent:       #5865F2;
   --accent-hover: #4752C4;
-  --radius:       8px;
+  --radius:       16px;
 }
 
-/* ─────── Midnight Void (default dark) ─────── */
+/* ─────── Midnight Void (true black) ─────── */
 :root,
 [data-theme="midnight-void"] {
-  --background:  #313338;
-  --surface:     #2B2D31;
-  --surface-2:   #1E1F22;
-  --input-bg:    #383A40;
-  --foreground:  #DBDEE1;
-  --muted:       #80848E;
-  --border:      #3F4147;
+  --background:  #0D0D0F;
+  --surface:     #141416;
+  --surface-2:   #050506;
+  --input-bg:    #1C1C1F;
+  --foreground:  #E6E6EA;
+  --muted:       #55555F;
+  --border:      #222228;
   --my-name:     #80A7F7;
   --their-name:  #56d364;
 }
 
-/* ─────── Slate Dusk (mid-tone twilight) ─────── */
+/* ─────── Slate Dusk (primary dark-gray) ─────── */
 [data-theme="slate-dusk"] {
   --background:  #2E3148;
   --surface:     #272A3D;
@@ -59,15 +61,15 @@
   --their-name:  #5CC87A;
 }
 
-/* ─────── Frost Air (clean light) ─────── */
+/* ─────── Frost Air (warm paper) ─────── */
 [data-theme="frost-air"] {
-  --background:  #F2F5F9;
-  --surface:     #FFFFFF;
-  --surface-2:   #E8EEF5;
-  --input-bg:    #EDF1F7;
-  --foreground:  #1A2332;
-  --muted:       #6B7C93;
-  --border:      #CDD6E2;
+  --background:  #EFECE5;
+  --surface:     #F5F3EE;
+  --surface-2:   #E7E3DB;
+  --input-bg:    #EAE7DF;
+  --foreground:  #1C1914;
+  --muted:       #7A7168;
+  --border:      #D4CFC6;
   --my-name:     #3B5EA6;
   --their-name:  #1A7A3A;
 }
@@ -103,4 +105,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+}
+
+/* Composer focus ring */
+.composer-focused {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 0;
 }

@@ -1,7 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 import type { Server } from "http";
+import { parse as parseCookie } from "cookie";
 import { logger } from "./logger";
+import { getSession, SESSION_COOKIE } from "./auth";
 
 interface Client {
   ws: WebSocket;
@@ -43,7 +45,6 @@ function resolveIgnition(matchId: string) {
   } else if (tapEntries.length >= 2) {
     firstSpeakerId = tapEntries.sort((a, b) => a[1] - b[1])[0][0];
   }
-  // tapEntries.length === 0 → null → shared start
 
   logger.info({ matchId, firstSpeakerId }, "Ignition resolved");
 
@@ -70,30 +71,60 @@ function maybeStartIgnition(matchId: string) {
   logger.info({ matchId }, "Ignition started");
 }
 
+/** Section J — resolve verified userId from WS upgrade request */
+async function getVerifiedUserId(req: IncomingMessage): Promise<string | null> {
+  // Try Authorization: Bearer <sid> header first (API client fallback)
+  const authHeader = req.headers["authorization"];
+  let sid: string | undefined;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    sid = authHeader.slice(7);
+  } else {
+    // Parse sid from cookie
+    const cookies = parseCookie(req.headers.cookie ?? "");
+    sid = cookies[SESSION_COOKIE];
+  }
+
+  if (!sid) return null;
+
+  try {
+    const session = await getSession(sid);
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function setupWebSocket(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
-  wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
+  wss.on("connection", async (ws: WebSocket, req: IncomingMessage) => {
     const url = new URL(req.url ?? "", "http://localhost");
     const matchId = url.searchParams.get("matchId");
-    const userId = url.searchParams.get("userId");
 
-    if (!matchId || !userId) {
-      ws.close(1008, "matchId and userId required");
+    if (!matchId) {
+      ws.close(1008, "matchId required");
       return;
     }
 
+    // Section J — verify session before trusting userId
+    const verifiedUserId = await getVerifiedUserId(req);
+    if (!verifiedUserId) {
+      ws.close(1008, "Unauthorized: valid session required");
+      return;
+    }
+
+    const userId = verifiedUserId;
     const client: Client = { ws, userId, matchId };
     clients.push(client);
 
-    logger.info({ matchId, userId }, "WS client connected");
+    logger.info({ matchId, userId }, "WS client connected (verified)");
 
     broadcastToMatch(matchId, {
       type: "presence",
       data: { userId, online: true },
     });
 
-    // Try to start ignition now that a new user joined
     maybeStartIgnition(matchId);
 
     ws.on("message", (raw) => {

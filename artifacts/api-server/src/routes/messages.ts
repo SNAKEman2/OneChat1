@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { messagesTable, matchesTable } from "@workspace/db";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, lt, and } from "drizzle-orm";
 import { z } from "zod/v4";
 
 const router = Router();
@@ -13,12 +13,20 @@ const sendMessageSchema = z.object({
   replyToId: z.string().uuid().optional().nullable(),
 });
 
+const paginationSchema = z.object({
+  before: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(100),
+});
+
 router.get("/matches/:matchId/messages", async (req, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   const userId = req.user!.id;
   const { matchId } = req.params;
+
+  const pagination = paginationSchema.safeParse(req.query);
+  const { before, limit } = pagination.success ? pagination.data : { before: undefined, limit: 100 };
 
   try {
     const [match] = await db
@@ -35,11 +43,30 @@ router.get("/matches/:matchId/messages", async (req, res) => {
       return res.status(403).json({ error: "Forbidden" });
     }
 
+    // Cursor-based pagination: if `before` is provided, find that message's
+    // createdAt and return only messages before it (older messages).
+    let cursorCondition = undefined;
+    if (before) {
+      const [cursorMsg] = await db
+        .select({ createdAt: messagesTable.createdAt })
+        .from(messagesTable)
+        .where(eq(messagesTable.id, before))
+        .limit(1);
+      if (cursorMsg) {
+        cursorCondition = lt(messagesTable.createdAt, cursorMsg.createdAt);
+      }
+    }
+
+    const whereClause = cursorCondition
+      ? and(eq(messagesTable.matchId, matchId), cursorCondition)
+      : eq(messagesTable.matchId, matchId);
+
     const messages = await db
       .select()
       .from(messagesTable)
-      .where(eq(messagesTable.matchId, matchId))
-      .orderBy(asc(messagesTable.createdAt));
+      .where(whereClause)
+      .orderBy(asc(messagesTable.createdAt))
+      .limit(limit);
 
     return res.json(messages.map(serializeMessage));
   } catch (err) {

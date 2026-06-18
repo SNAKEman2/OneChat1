@@ -187,3 +187,16 @@ state?: string;
 iss?: string;
 };
 
+export type GetMatchMessagesParams = {
+/**
+ * Return messages created before this message ID (cursor for pagination)
+ */
+before?: string;
+/**
+ * Maximum number of messages to return (1-100, default 100)
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+};
+

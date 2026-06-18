@@ -4,32 +4,32 @@ export const AURAS = {
   calm: {
     label: "Calm",
     emoji: "🌊",
-    gradient: "linear-gradient(135deg, #4ECDC4 0%, #A8EDEA 100%)",
-    solid: "#4ECDC4",
+    gradient: "linear-gradient(135deg, #0096B2 0%, #00B4D8 100%)",
+    solid: "#0096B2",
   },
   curious: {
     label: "Curious",
     emoji: "✨",
-    gradient: "linear-gradient(135deg, #FFB347 0%, #FFD590 100%)",
-    solid: "#FFB347",
+    gradient: "linear-gradient(135deg, #D4820A 0%, #F4A261 100%)",
+    solid: "#D4820A",
   },
   reflective: {
     label: "Reflective",
     emoji: "🌙",
-    gradient: "linear-gradient(135deg, #A78BFA 0%, #DDD6FE 100%)",
-    solid: "#A78BFA",
+    gradient: "linear-gradient(135deg, #6B21A8 0%, #9333EA 100%)",
+    solid: "#7C3AED",
   },
   optimistic: {
     label: "Optimistic",
     emoji: "🌱",
-    gradient: "linear-gradient(135deg, #6BCB77 0%, #B2F2BB 100%)",
-    solid: "#6BCB77",
+    gradient: "linear-gradient(135deg, #166534 0%, #16A34A 100%)",
+    solid: "#16A34A",
   },
   passionate: {
     label: "Passionate",
     emoji: "🔥",
-    gradient: "linear-gradient(135deg, #FF6B6B 0%, #FFA0A0 100%)",
-    solid: "#FF6B6B",
+    gradient: "linear-gradient(135deg, #991B1B 0%, #DC2626 100%)",
+    solid: "#DC2626",
   },
 } as const;
 
@@ -46,25 +46,39 @@ interface AuraRingProps {
   ringWidth?: number;
 }
 
-export function AuraRing({ aura, size, children, ringWidth = 3 }: AuraRingProps) {
+export function AuraRing({ aura, size, children, ringWidth = 4 }: AuraRingProps) {
   if (!aura || !isValidAura(aura)) {
     return <>{children}</>;
   }
 
   const { gradient } = AURAS[aura];
+  const gap = 2;
 
   return (
     <div
-      className="flex-shrink-0 inline-flex"
+      className="flex-shrink-0 inline-flex items-center justify-center"
       style={{
         background: gradient,
         borderRadius: "50%",
-        padding: ringWidth,
-        width: size + ringWidth * 2,
-        height: size + ringWidth * 2,
+        padding: ringWidth + gap,
+        width: size + (ringWidth + gap) * 2,
+        height: size + (ringWidth + gap) * 2,
       }}
     >
-      {children}
+      <div
+        style={{
+          borderRadius: "50%",
+          background: "var(--surface)",
+          padding: gap,
+          width: size + gap * 2,
+          height: size + gap * 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -95,8 +109,8 @@ export function AuraPicker({ value, onChange }: AuraPickerProps) {
                     height: 44,
                     borderRadius: "50%",
                     background: info.gradient,
-                    outline: selected ? "2px solid var(--foreground)" : "2px solid transparent",
-                    outlineOffset: 2,
+                    outline: selected ? "2.5px solid var(--foreground)" : "2.5px solid transparent",
+                    outlineOffset: 3,
                     transition: "outline-color 0.15s ease",
                   }}
                 />
@@ -147,12 +161,12 @@ export function ThemePickerInline({ themes, value, onChange }: ThemePickerInline
               style={{
                 width: "100%",
                 height: 40,
-                borderRadius: 8,
+                borderRadius: 10,
                 background: info.preview,
                 border: selected
-                  ? "2px solid var(--accent)"
+                  ? "2.5px solid var(--accent)"
                   : "2px solid var(--border)",
-                transition: "border-color 0.15s ease",
+                transition: "border-color 0.15s ease, border-width 0.1s ease",
               }}
             />
             <span

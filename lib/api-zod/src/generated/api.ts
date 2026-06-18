@@ -221,10 +221,20 @@ export const GetMatchArchiveResponse = zod.array(GetMatchArchiveResponseItem)
 
 
 /**
- * @summary Get all messages for a match
+ * @summary Get messages for a match (supports cursor pagination)
  */
 export const GetMatchMessagesParams = zod.object({
   "matchId": zod.coerce.string()
+})
+
+export const getMatchMessagesQueryLimitDefault = 100;
+export const getMatchMessagesQueryLimitMax = 100;
+
+
+
+export const GetMatchMessagesQueryParams = zod.object({
+  "before": zod.coerce.string().optional().describe('Return messages created before this message ID (cursor for pagination)'),
+  "limit": zod.coerce.number().min(1).max(getMatchMessagesQueryLimitMax).default(getMatchMessagesQueryLimitDefault).describe('Maximum number of messages to return (1-100, default 100)')
 })
 
 export const GetMatchMessagesResponseItem = zod.object({

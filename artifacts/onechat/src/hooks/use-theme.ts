@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 export const THEMES = {
   "midnight-void": {
     label: "Midnight Void",
-    description: "Deep space dark",
-    preview: "#313338",
-    surface: "#2B2D31",
+    description: "True black",
+    preview: "#0D0D0F",
+    surface: "#141416",
   },
   "slate-dusk": {
     label: "Slate Dusk",
@@ -15,9 +15,9 @@ export const THEMES = {
   },
   "frost-air": {
     label: "Frost Air",
-    description: "Clean and light",
-    preview: "#F2F5F9",
-    surface: "#FFFFFF",
+    description: "Warm paper",
+    preview: "#EFECE5",
+    surface: "#F5F3EE",
   },
 } as const;
 

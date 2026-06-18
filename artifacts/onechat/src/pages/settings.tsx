@@ -52,6 +52,15 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
 
+  // Section A — read `?from=` param so we can return to the right page
+  const fromPath = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("from");
+      if (p && (p === "/room" || p === "/gallery" || p === "/")) return p;
+    } catch {}
+    return "/room";
+  })();
+
   const { data: profile } = useGetMyProfile({
     query: { queryKey: getGetMyProfileQueryKey() },
   });
@@ -127,7 +136,7 @@ export default function Settings() {
         style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
       >
         <button
-          onClick={() => setLocation("/room")}
+          onClick={() => setLocation(fromPath)}
           className="transition-opacity active:opacity-60 mr-1"
           aria-label="Back"
         >

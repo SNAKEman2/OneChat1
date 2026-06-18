@@ -33,7 +33,7 @@ export default function FrozenRoom() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
-  const { data: messages, isLoading } = useGetMatchMessages(matchId || "", {
+  const { data: messages, isLoading } = useGetMatchMessages(matchId || "", undefined, {
     query: {
       enabled: !!matchId,
       queryKey: getGetMatchMessagesQueryKey(matchId || ""),

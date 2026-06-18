@@ -13,6 +13,7 @@ export * from './authUserEnvelope';
 export * from './beginBrowserLoginParams';
 export * from './endMatchInput';
 export * from './errorEnvelope';
+export * from './getMatchMessagesParams';
 export * from './handleBrowserLoginCallbackParams';
 export * from './healthStatus';
 export * from './logoutSuccess';

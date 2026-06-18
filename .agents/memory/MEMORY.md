@@ -2,3 +2,6 @@
 - [OneChat DB uniqueness](onechat-db.md) — one-match-per-day is enforced at the DB level with unique indexes, not just in application code.
 - [replit-auth-web composite](replit-auth-web-composite.md) — lib/replit-auth-web must have composite:true to be referenced from artifact tsconfigs.
 - [Phase 1.5 identity layer](phase-1.5-identity.md) — theme system (3 themes, localStorage+initTheme), aura rings (5 auras, server-stored DB column), full gallery/room/setup/settings updates; Section I docs in .local/docs/technical-investigation.md.
+- [Orval params naming conflict](orval-params-conflict.md) — adding query params to an endpoint that also has path params generates GetMatchMessagesParams in both Zod api.ts AND types/index; lib/api-zod/src/index.ts must list explicit re-exports to exclude the conflicting name.
+- [useGetMatchMessages signature](use-get-match-messages.md) — after adding pagination query params via codegen, params become second arg and options third; call sites must use useGetMatchMessages(matchId, undefined, { query: ... }).
+- [WS session auth pattern](ws-auth.md) — WS upgrade bypasses Express middleware; parse cookies with the cookie package inside the async connection handler and call getSession(); reject with ws.close(1008) if session is invalid.

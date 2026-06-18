@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { AuraRing } from "@/components/aura-ring";
+import { ThemePickerInline } from "@/components/aura-ring";
+import { useTheme, THEMES, type ThemeId } from "@/hooks/use-theme";
 
 /* ─── Avatar ─────────────────────────────────────────────────── */
 function Avatar({
@@ -120,6 +122,8 @@ function Lounge({ profile }: { profile: any }) {
   const [, setLocation] = useLocation();
   const [icebreaker, setIcebreaker] = useState(profile?.icebreaker ?? "");
   const [editing, setEditing] = useState(false);
+  const [ownSheetOpen, setOwnSheetOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
   const updateProfile = useUpdateMyProfile();
 
   const save = () => {
@@ -129,6 +133,8 @@ function Lounge({ profile }: { profile: any }) {
     setEditing(false);
   };
 
+  const myName = profile?.displayName ?? "You";
+
   return (
     <div className="flex-1 flex flex-col" style={{ background: "var(--surface-2)" }}>
       {/* Header */}
@@ -137,16 +143,16 @@ function Lounge({ profile }: { profile: any }) {
         style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
       >
         <div className="flex items-center gap-3">
-          {/* Tappable own avatar → Settings (Item 7) */}
+          {/* Section E — own avatar opens own profile sheet instead of /settings */}
           {profile && (
             <button
-              onClick={() => setLocation("/settings")}
+              onClick={() => setOwnSheetOpen(true)}
               className="flex-shrink-0 transition-opacity active:opacity-70"
-              aria-label="Open settings"
+              aria-label="View your profile"
             >
-              <AuraRing aura={profile.aura} size={36} ringWidth={2}>
+              <AuraRing aura={profile.aura} size={36} ringWidth={4}>
                 <Avatar
-                  name={profile.displayName}
+                  name={myName}
                   avatarUrl={profile.avatarUrl}
                   size={36}
                   colorVar="var(--accent)"
@@ -156,7 +162,7 @@ function Lounge({ profile }: { profile: any }) {
           )}
           <div>
             <p className="text-sm font-mono font-medium" style={{ color: "var(--foreground)" }}>
-              {profile?.displayName ?? "You"}
+              {myName}
             </p>
             <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
               OneChat
@@ -244,6 +250,86 @@ function Lounge({ profile }: { profile: any }) {
           )}
         </div>
       </div>
+
+      {/* Section E — Own profile sheet */}
+      <DialogPrimitive.Root open={ownSheetOpen} onOpenChange={setOwnSheetOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className="fixed inset-0 z-40 bg-black/50"
+            style={{ backdropFilter: "blur(2px)" }}
+          />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: "var(--surface)",
+              borderTop: "1px solid var(--border)",
+              borderRadius: "24px 24px 0 0",
+              maxHeight: "70vh",
+              overflowY: "auto",
+              padding: "20px 24px 48px",
+            }}
+          >
+            <DialogPrimitive.Title className="sr-only">Your profile</DialogPrimitive.Title>
+            <div className="w-10 h-1 rounded-full mx-auto mb-6" style={{ background: "var(--border)" }} />
+
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <AuraRing aura={profile?.aura} size={80} ringWidth={4}>
+                <Avatar name={myName} avatarUrl={profile?.avatarUrl} size={80} colorVar="var(--accent)" />
+              </AuraRing>
+              <div className="text-center">
+                <p className="font-mono font-semibold text-lg" style={{ color: "var(--accent)" }}>
+                  {myName}
+                </p>
+                {profile?.icebreaker && (
+                  <p className="text-sm font-serif italic mt-2 leading-relaxed px-2 max-w-xs" style={{ color: "var(--foreground)" }}>
+                    "{profile.icebreaker}"
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
+                Theme
+              </p>
+              <ThemePickerInline
+                themes={THEMES}
+                value={theme}
+                onChange={(t) => setTheme(t as ThemeId)}
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                setOwnSheetOpen(false);
+                setLocation("/settings?from=/room");
+              }}
+              className="w-full flex items-center justify-between py-3 font-mono text-sm transition-opacity active:opacity-60"
+              style={{ color: "var(--accent)", borderTop: "1px solid var(--border)" }}
+            >
+              <span>Full settings</span>
+              <svg width="8" height="13" viewBox="0 0 8 13" fill="none">
+                <path d="M1 1l6 5.5L1 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <DialogPrimitive.Close
+              className="absolute top-4 right-5 transition-opacity active:opacity-60"
+              style={{ color: "var(--muted)" }}
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </div>
   );
 }
@@ -262,12 +348,7 @@ function EndedRoom({ matchState }: { matchState: any }) {
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="9" stroke="var(--muted)" strokeWidth="1.5" />
-          <path
-            d="M9 9l6 6M15 9l-6 6"
-            stroke="var(--muted)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
+          <path d="M9 9l6 6M15 9l-6 6" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
       <div>
@@ -333,26 +414,47 @@ function ActiveRoom({
   myProfile: any;
 }) {
   const [, setLocation] = useLocation();
+  const { theme, setTheme } = useTheme();
 
   // Input state
   const [input, setInput] = useState("");
   const [inputOpen, setInputOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Dialog / sheet state
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [partnerSheetOpen, setPartnerSheetOpen] = useState(false);
+  const [ownSheetOpen, setOwnSheetOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
-  // Icebreaker anchor (Section G)
+  // Icebreaker anchor
   const [icebreakerVisible, setIcebreakerVisible] = useState(false);
   const icebreakerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Ignition
-  const [ignitionMode, setIgnitionMode] = useState<IMode | null>(null);
-  const handleIgnitionDone = useCallback((mode: IMode) => setIgnitionMode(mode), []);
+  // Section A — Ignition skip: read from sessionStorage keyed by matchId
+  const ignitionKey = `ignition-${matchState.matchId}`;
+  const [ignitionMode, setIgnitionMode] = useState<IMode | null>(() => {
+    try {
+      return sessionStorage.getItem(ignitionKey) as IMode | null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Section A — persist ignition completion so re-mounts skip the ritual
+  const handleIgnitionDone = useCallback(
+    (mode: IMode) => {
+      setIgnitionMode(mode);
+      try {
+        sessionStorage.setItem(ignitionKey, mode);
+      } catch {}
+    },
+    [ignitionKey]
+  );
 
   // Match expiry
   const [timeLeft, setTimeLeft] = useState("");
@@ -362,7 +464,7 @@ function ActiveRoom({
   const sendMessage = useSendMessage();
   const endMatch = useEndMatch();
 
-  const { data: initialMessages } = useGetMatchMessages(matchState.matchId, {
+  const { data: initialMessages } = useGetMatchMessages(matchState.matchId, undefined, {
     query: { queryKey: getGetMatchMessagesQueryKey(matchState.matchId) },
   });
 
@@ -376,7 +478,6 @@ function ActiveRoom({
     return m;
   }, [messages]);
 
-  // Group messages
   const groups = useMemo(() => groupMessages(messages, userId), [messages, userId]);
 
   const partner = matchState.partner;
@@ -408,7 +509,6 @@ function ActiveRoom({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, partnerTyping]);
 
-  // Open input
   const openInput = () => {
     setInputOpen(true);
     setTimeout(() => inputRef.current?.focus(), 80);
@@ -437,7 +537,6 @@ function ActiveRoom({
     }
   };
 
-  // Auto-growing textarea handler (Item 3)
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     sendTyping(e.target.value.length > 0);
@@ -470,13 +569,12 @@ function ActiveRoom({
     openInput();
   };
 
-  // Partner inactivity: > 3 hours since lastActive and not currently online (Item 8)
   const showInactiveNotice =
     !!partner?.lastActive &&
     !onlineStatus[partnerUserId] &&
     (Date.now() - new Date(partner.lastActive).getTime()) / 3600000 > 3;
 
-  // Show ignition ritual first
+  // Show ignition ritual first (skipped if sessionStorage already has result)
   if (!ignitionMode) {
     return (
       <AnimatePresence mode="wait">
@@ -520,15 +618,15 @@ function ActiveRoom({
           </svg>
         </button>
 
-        {/* Tappable partner block → profile sheet */}
+        {/* Tappable partner block → partner profile sheet */}
         <button
           onClick={() => setPartnerSheetOpen(true)}
           className="flex-1 min-w-0 flex items-center gap-2.5 text-left transition-opacity active:opacity-70"
           aria-label="View partner profile"
         >
-          {/* Avatar with aura ring + live presence dot */}
           <div className="relative flex-shrink-0">
-            <AuraRing aura={partner?.aura} size={36} ringWidth={2}>
+            {/* Section D — ringWidth=4 */}
+            <AuraRing aura={partner?.aura} size={36} ringWidth={4}>
               <Avatar
                 name={partnerName}
                 avatarUrl={partner?.avatarUrl}
@@ -547,22 +645,16 @@ function ActiveRoom({
           </div>
 
           <div className="flex-1 min-w-0">
-            <p
-              className="text-sm font-mono font-semibold truncate"
-              style={{ color: "var(--foreground)" }}
-            >
+            <p className="text-sm font-mono font-semibold truncate" style={{ color: "var(--foreground)" }}>
               {partnerName}
             </p>
-            <p
-              className="text-xs font-mono"
-              style={{ color: isLocked ? "var(--muted)" : "var(--accent)" }}
-            >
+            <p className="text-xs font-mono" style={{ color: isLocked ? "var(--muted)" : "var(--accent)" }}>
               {isLocked ? "Room closed" : `${timeLeft} left`}
             </p>
           </div>
         </button>
 
-        {/* End button — opens AlertDialog instead of window.confirm (Item 2) */}
+        {/* End button */}
         {!isLocked && (
           <button
             onClick={() => setEndDialogOpen(true)}
@@ -580,20 +672,9 @@ function ActiveRoom({
           className="flex items-start gap-2 px-4 py-2.5"
           style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 14 14"
-            fill="none"
-            className="mt-0.5 flex-shrink-0"
-          >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="mt-0.5 flex-shrink-0">
             <circle cx="7" cy="7" r="6" stroke="var(--accent)" strokeWidth="1.2" />
-            <path
-              d="M7 4v4M7 9.5v.5"
-              stroke="var(--accent)"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
+            <path d="M7 4v4M7 9.5v.5" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
           <div className="min-w-0">
             <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>
@@ -621,31 +702,17 @@ function ActiveRoom({
       >
         {/* First-in-room notice */}
         {ignitionMode === "first" && messages.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-center py-4"
-          >
-            <p
-              className="text-xs font-mono uppercase tracking-widest"
-              style={{ color: "var(--accent)" }}
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center py-4">
+            <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--accent)" }}>
               You are first in this room.
             </p>
           </motion.div>
         )}
 
-        {/* Partner inactivity notice (Item 8) */}
+        {/* Partner inactivity notice */}
         {showInactiveNotice && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-center py-3"
-          >
-            <p
-              className="text-xs font-mono text-center max-w-xs leading-relaxed"
-              style={{ color: "var(--muted)" }}
-            >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center py-3">
+            <p className="text-xs font-mono text-center max-w-xs leading-relaxed" style={{ color: "var(--muted)" }}>
               {partnerName} hasn't been active in a while — they'll likely reply when they're back.
             </p>
           </motion.div>
@@ -661,9 +728,9 @@ function ActiveRoom({
               transition={{ duration: 0.2 }}
               className={`flex gap-3 mb-4 ${group.isMe ? "flex-row-reverse" : "flex-row"}`}
             >
-              {/* Avatar column with aura ring */}
+              {/* Avatar column — Section D ringWidth=4 */}
               <div className="flex-shrink-0 pt-0.5">
-                <AuraRing aura={group.isMe ? myProfile?.aura : partner?.aura} size={40} ringWidth={2}>
+                <AuraRing aura={group.isMe ? myProfile?.aura : partner?.aura} size={40} ringWidth={4}>
                   <Avatar
                     name={group.isMe ? myName : partnerName}
                     avatarUrl={group.isMe ? myProfile?.avatarUrl : partner?.avatarUrl}
@@ -674,25 +741,17 @@ function ActiveRoom({
               </div>
 
               {/* Content column */}
-              <div
-                className={`flex flex-col gap-0.5 min-w-0 flex-1 ${
-                  group.isMe ? "items-end" : "items-start"
-                }`}
-              >
-                {/* Name + timestamp */}
-                <div
-                  className={`flex items-baseline gap-2 ${
-                    group.isMe ? "flex-row-reverse" : "flex-row"
-                  }`}
-                >
-                  <span
-                    className="text-sm font-mono font-semibold"
-                    style={{
-                      color: group.isMe ? "var(--my-name)" : "var(--their-name)",
-                    }}
-                  >
-                    {group.isMe ? myName : partnerName}
-                  </span>
+              <div className={`flex flex-col gap-0.5 min-w-0 flex-1 ${group.isMe ? "items-end" : "items-start"}`}>
+                {/* Section F — own messages: timestamp only; partner: name + timestamp */}
+                <div className={`flex items-baseline gap-2 ${group.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                  {!group.isMe && (
+                    <span
+                      className="text-sm font-mono font-semibold"
+                      style={{ color: "var(--their-name)" }}
+                    >
+                      {partnerName}
+                    </span>
+                  )}
                   <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>
                     {format(new Date(group.msgs[0].createdAt), "hh:mm a")}
                   </span>
@@ -701,33 +760,20 @@ function ActiveRoom({
                 {/* Each message in the group */}
                 {group.msgs.map((msg, mi) => {
                   const quotedMsg = msg.replyToId ? msgMap.get(msg.replyToId) : null;
-                  const quotedSender =
-                    quotedMsg?.senderId === userId ? myName : partnerName;
+                  const quotedSender = quotedMsg?.senderId === userId ? myName : partnerName;
                   return (
                     <div
                       key={msg.id}
-                      className={`group/msg w-full ${
-                        group.isMe
-                          ? "flex flex-col items-end"
-                          : "flex flex-col items-start"
-                      }`}
+                      className={`group/msg w-full ${group.isMe ? "flex flex-col items-end" : "flex flex-col items-start"}`}
                     >
                       {/* Reply quote */}
                       {quotedMsg && (
                         <button
                           className="reply-quote mb-1 max-w-[90%] text-left"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
+                          onClick={(e) => e.stopPropagation()}
                           style={{ color: "var(--muted)" }}
                         >
-                          <strong
-                            style={{
-                              color: group.isMe
-                                ? "var(--their-name)"
-                                : "var(--my-name)",
-                            }}
-                          >
+                          <strong style={{ color: group.isMe ? "var(--their-name)" : "var(--my-name)" }}>
                             {quotedSender}:{" "}
                           </strong>
                           {quotedMsg.content.slice(0, 80)}
@@ -736,41 +782,27 @@ function ActiveRoom({
                       )}
 
                       {/* Message row */}
-                      <div
-                        className={`flex items-end gap-2 ${
-                          group.isMe ? "flex-row-reverse" : "flex-row"
-                        }`}
-                      >
-                        {/* Message body: font-sans for readability (Item 4) */}
+                      <div className={`flex items-end gap-2 ${group.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                        {/* Message body — font-sans, first message slightly larger */}
                         <p
-                          className={`text-base font-sans leading-snug ${
-                            mi === 0 && gi === 0 ? "text-lg" : ""
-                          }`}
+                          className={`text-base font-sans leading-snug ${mi === 0 && gi === 0 ? "text-lg" : ""}`}
                           style={{ color: "var(--foreground)", maxWidth: "80%" }}
                         >
                           {msg.content}
                         </p>
 
-                        {/* Reply button */}
+                        {/* Section G — reply button: 44px min touch target via padding */}
                         {!isLocked && (
                           <button
-                            className="opacity-20 group-hover/msg:opacity-80 focus:opacity-80 active:opacity-100 flex-shrink-0 p-1 rounded transition-opacity"
-                            style={{ color: "var(--muted)" }}
+                            className="opacity-0 group-hover/msg:opacity-70 focus:opacity-70 active:opacity-100 flex-shrink-0 transition-opacity"
+                            style={{ color: "var(--muted)", padding: "14px 8px", margin: "-14px -8px" }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              startReply(
-                                msg,
-                                group.isMe ? myName : partnerName
-                              );
+                              startReply(msg, group.isMe ? myName : partnerName);
                             }}
                             title="Reply"
                           >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 14 14"
-                              fill="none"
-                            >
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                               <path
                                 d="M5 3L1 7l4 4M1 7h8a4 4 0 014 4"
                                 stroke="currentColor"
@@ -799,13 +831,8 @@ function ActiveRoom({
               exit={{ opacity: 0 }}
               className="flex items-center gap-3 mb-4"
             >
-              <AuraRing aura={partner?.aura} size={40} ringWidth={2}>
-                <Avatar
-                  name={partnerName}
-                  avatarUrl={partner?.avatarUrl}
-                  size={40}
-                  colorVar="var(--their-name)"
-                />
+              <AuraRing aura={partner?.aura} size={40} ringWidth={4}>
+                <Avatar name={partnerName} avatarUrl={partner?.avatarUrl} size={40} colorVar="var(--their-name)" />
               </AuraRing>
               <div
                 className="flex items-center gap-1 px-3 py-2 rounded-lg"
@@ -852,7 +879,7 @@ function ActiveRoom({
           )}
         </AnimatePresence>
 
-        {/* ── Icebreaker anchor pill (Section G) ── */}
+        {/* Icebreaker anchor pill */}
         <AnimatePresence>
           {icebreakerVisible && partner?.icebreaker && (
             <motion.div
@@ -902,10 +929,7 @@ function ActiveRoom({
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: 0.2 }}
                 className="px-4 py-3"
-                style={{
-                  background: "var(--surface)",
-                  borderTop: "1px solid var(--border)",
-                }}
+                style={{ background: "var(--surface)", borderTop: "1px solid var(--border)" }}
               >
                 <button
                   onClick={openInput}
@@ -932,14 +956,11 @@ function ActiveRoom({
           <AnimatePresence>
             {inputOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 12 }}
-                transition={{ duration: 0.2 }}
-                style={{
-                  background: "var(--surface)",
-                  borderTop: "1px solid var(--border)",
-                }}
+                exit={{ opacity: 0, y: 16 }}
+                transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                style={{ background: "var(--surface)", borderTop: "1px solid var(--border)" }}
               >
                 {/* Reply banner */}
                 <AnimatePresence>
@@ -951,13 +972,7 @@ function ActiveRoom({
                       className="flex items-center gap-2 px-4 py-2 overflow-hidden"
                       style={{ borderBottom: "1px solid var(--border)" }}
                     >
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        className="flex-shrink-0"
-                      >
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
                         <path
                           d="M4 2L1 5l3 3M1 5h6.5A3.5 3.5 0 0111 8.5v.5"
                           stroke="var(--accent)"
@@ -966,14 +981,9 @@ function ActiveRoom({
                           strokeLinejoin="round"
                         />
                       </svg>
-                      <p
-                        className="text-xs font-mono flex-1 min-w-0 truncate"
-                        style={{ color: "var(--muted)" }}
-                      >
+                      <p className="text-xs font-mono flex-1 min-w-0 truncate" style={{ color: "var(--muted)" }}>
                         Replying to{" "}
-                        <strong style={{ color: "var(--foreground)" }}>
-                          {replyTo.senderName}
-                        </strong>{" "}
+                        <strong style={{ color: "var(--foreground)" }}>{replyTo.senderName}</strong>{" "}
                         — {replyTo.content.slice(0, 60)}
                         {replyTo.content.length > 60 ? "…" : ""}
                       </p>
@@ -983,23 +993,15 @@ function ActiveRoom({
                         style={{ color: "var(--muted)" }}
                       >
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M1 1l10 10M11 1L1 11"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                          />
+                          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
                       </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
-                {/* Input row — auto-growing textarea (Item 3) */}
-                <form
-                  onSubmit={handleSend}
-                  className="flex items-end gap-2 px-3 py-3"
-                >
+                {/* Input row */}
+                <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-3">
                   {/* Close */}
                   <button
                     type="button"
@@ -1008,32 +1010,27 @@ function ActiveRoom({
                     style={{ background: "var(--border)", color: "var(--muted)" }}
                   >
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path
-                        d="M1 1l8 8M9 1L1 9"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                      />
+                      <path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </button>
 
-                  {/* Textarea wrapper */}
+                  {/* Section H — Textarea wrapper with focus ring */}
                   <div
-                    className="flex-1 flex items-end rounded-lg px-4 py-2.5"
+                    className={`flex-1 flex items-end rounded-lg px-4 py-2.5 transition-all ${composerFocused ? "composer-focused" : ""}`}
                     style={{ background: "var(--input-bg)", minHeight: 44 }}
                   >
                     <textarea
                       ref={inputRef}
                       value={input}
                       onChange={handleTyping}
+                      onFocus={() => setComposerFocused(true)}
+                      onBlur={() => setComposerFocused(false)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           handleSend();
                         }
-                        if (e.key === "Escape") {
-                          closeInput();
-                        }
+                        if (e.key === "Escape") closeInput();
                       }}
                       placeholder={`Message ${partnerName}…`}
                       rows={1}
@@ -1072,52 +1069,28 @@ function ActiveRoom({
         </>
       )}
 
-      {/* ── End Room AlertDialog (Item 2) ── */}
+      {/* ── End Room AlertDialog ── */}
       <AlertDialog open={endDialogOpen} onOpenChange={setEndDialogOpen}>
-        <AlertDialogContent
-          style={{
-            background: "var(--surface)",
-            borderColor: "var(--border)",
-          }}
-        >
+        <AlertDialogContent style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
           <AlertDialogHeader>
-            <AlertDialogTitle
-              className="font-mono"
-              style={{ color: "var(--foreground)" }}
-            >
+            <AlertDialogTitle className="font-mono" style={{ color: "var(--foreground)" }}>
               End this room?
             </AlertDialogTitle>
-            <AlertDialogDescription
-              className="font-mono text-sm"
-              style={{ color: "var(--muted)" }}
-            >
+            <AlertDialogDescription className="font-mono text-sm" style={{ color: "var(--muted)" }}>
               The room will close early. You won't be re-matched today.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
               className="font-mono"
-              style={{
-                background: "var(--input-bg)",
-                borderColor: "var(--border)",
-                color: "var(--foreground)",
-              }}
+              style={{ background: "var(--input-bg)", borderColor: "var(--border)", color: "var(--foreground)" }}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               className="font-mono"
-              style={{
-                background: "var(--accent)",
-                color: "white",
-                borderColor: "transparent",
-              }}
-              onClick={() =>
-                endMatch.mutate({
-                  matchId: matchState.matchId,
-                  data: { block: false },
-                })
-              }
+              style={{ background: "var(--accent)", color: "white", borderColor: "transparent" }}
+              onClick={() => endMatch.mutate({ matchId: matchState.matchId, data: { block: false } })}
             >
               End room
             </AlertDialogAction>
@@ -1125,7 +1098,40 @@ function ActiveRoom({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Partner Profile Sheet (Item 5) ── */}
+      {/* ── Block Confirmation AlertDialog ── */}
+      <AlertDialog open={blockDialogOpen} onOpenChange={setBlockDialogOpen}>
+        <AlertDialogContent style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-mono" style={{ color: "var(--foreground)" }}>
+              Block {partnerName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-mono text-sm" style={{ color: "var(--muted)" }}>
+              This will close the room and block them from being your match again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="font-mono"
+              style={{ background: "var(--input-bg)", borderColor: "var(--border)", color: "var(--foreground)" }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="font-mono"
+              style={{ background: "#DC2626", color: "white", borderColor: "transparent" }}
+              onClick={() => {
+                endMatch.mutate({ matchId: matchState.matchId, data: { block: true } });
+                setPartnerSheetOpen(false);
+                setBlockDialogOpen(false);
+              }}
+            >
+              Block and close room
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Partner Profile Sheet (Section E) ── */}
       <DialogPrimitive.Root open={partnerSheetOpen} onOpenChange={setPartnerSheetOpen}>
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay
@@ -1142,7 +1148,7 @@ function ActiveRoom({
               zIndex: 50,
               background: "var(--surface)",
               borderTop: "1px solid var(--border)",
-              borderRadius: "12px 12px 0 0",
+              borderRadius: "24px 24px 0 0",
               maxHeight: "60vh",
               overflowY: "auto",
               padding: "20px 24px 48px",
@@ -1151,38 +1157,36 @@ function ActiveRoom({
             <DialogPrimitive.Title className="sr-only">
               {partnerName}'s profile
             </DialogPrimitive.Title>
-            {/* Drag handle */}
-            <div
-              className="w-10 h-1 rounded-full mx-auto mb-6"
-              style={{ background: "var(--border)" }}
-            />
+            <div className="w-10 h-1 rounded-full mx-auto mb-6" style={{ background: "var(--border)" }} />
 
             <div className="flex flex-col items-center gap-4">
               <AuraRing aura={partner?.aura} size={80} ringWidth={4}>
-                <Avatar
-                  name={partnerName}
-                  avatarUrl={partner?.avatarUrl}
-                  size={80}
-                  colorVar="var(--their-name)"
-                />
+                <Avatar name={partnerName} avatarUrl={partner?.avatarUrl} size={80} colorVar="var(--their-name)" />
               </AuraRing>
               <div className="text-center">
-                <p
-                  className="font-mono font-semibold text-lg"
-                  style={{ color: "var(--their-name)" }}
-                >
+                <p className="font-mono font-semibold text-lg" style={{ color: "var(--their-name)" }}>
                   {partnerName}
                 </p>
                 {partner?.icebreaker && (
-                  <p
-                    className="text-sm font-serif italic mt-3 leading-relaxed px-2 max-w-xs"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <p className="text-sm font-serif italic mt-3 leading-relaxed px-2 max-w-xs" style={{ color: "var(--foreground)" }}>
                     "{partner.icebreaker}"
                   </p>
                 )}
               </div>
             </div>
+
+            {/* Section E — Block action */}
+            {!isLocked && (
+              <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                <button
+                  onClick={() => setBlockDialogOpen(true)}
+                  className="w-full py-2.5 font-mono text-sm text-center rounded-lg transition-opacity active:opacity-70"
+                  style={{ background: "var(--surface-2)", color: "#DC2626", border: "1px solid var(--border)" }}
+                >
+                  Block {partnerName}
+                </button>
+              </div>
+            )}
 
             <DialogPrimitive.Close
               className="absolute top-4 right-5 transition-opacity active:opacity-60"
@@ -1190,12 +1194,87 @@ function ActiveRoom({
               aria-label="Close"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M2 2l12 12M14 2L2 14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
+                <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      {/* ── Own Profile Sheet (Section E) ── */}
+      <DialogPrimitive.Root open={ownSheetOpen} onOpenChange={setOwnSheetOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className="fixed inset-0 z-40 bg-black/50"
+            style={{ backdropFilter: "blur(2px)" }}
+          />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: "var(--surface)",
+              borderTop: "1px solid var(--border)",
+              borderRadius: "24px 24px 0 0",
+              maxHeight: "70vh",
+              overflowY: "auto",
+              padding: "20px 24px 48px",
+            }}
+          >
+            <DialogPrimitive.Title className="sr-only">Your profile</DialogPrimitive.Title>
+            <div className="w-10 h-1 rounded-full mx-auto mb-6" style={{ background: "var(--border)" }} />
+
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <AuraRing aura={myProfile?.aura} size={80} ringWidth={4}>
+                <Avatar name={myName} avatarUrl={myProfile?.avatarUrl} size={80} colorVar="var(--accent)" />
+              </AuraRing>
+              <div className="text-center">
+                <p className="font-mono font-semibold text-lg" style={{ color: "var(--accent)" }}>
+                  {myName}
+                </p>
+                {myProfile?.icebreaker && (
+                  <p className="text-sm font-serif italic mt-2 leading-relaxed px-2 max-w-xs" style={{ color: "var(--foreground)" }}>
+                    "{myProfile.icebreaker}"
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
+                Theme
+              </p>
+              <ThemePickerInline
+                themes={THEMES}
+                value={theme}
+                onChange={(t) => setTheme(t as ThemeId)}
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                setOwnSheetOpen(false);
+                setLocation("/settings?from=/room");
+              }}
+              className="w-full flex items-center justify-between py-3 font-mono text-sm transition-opacity active:opacity-60"
+              style={{ color: "var(--accent)", borderTop: "1px solid var(--border)" }}
+            >
+              <span>Full settings</span>
+              <svg width="8" height="13" viewBox="0 0 8 13" fill="none">
+                <path d="M1 1l6 5.5L1 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <DialogPrimitive.Close
+              className="absolute top-4 right-5 transition-opacity active:opacity-60"
+              style={{ color: "var(--muted)" }}
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </DialogPrimitive.Close>
           </DialogPrimitive.Content>

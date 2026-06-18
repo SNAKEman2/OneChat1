@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useGetMatchArchive, useGetMyProfile } from "@workspace/api-client-react";
 import { getGetMatchArchiveQueryKey, getGetMyProfileQueryKey } from "@/lib/query-keys";
 import { motion } from "framer-motion";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { AuraRing } from "@/components/aura-ring";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTheme, THEMES, type ThemeId } from "@/hooks/use-theme";
+import { ThemePickerInline } from "@/components/aura-ring";
 
 function formatMatchDate(dateStr: string) {
   try {
@@ -25,14 +29,15 @@ function Avatar({
   avatarUrl?: string | null;
   size?: number;
 }) {
-  if (avatarUrl) {
+  const [imgFailed, setImgFailed] = useState(false);
+  if (avatarUrl && !imgFailed) {
     return (
       <img
         src={avatarUrl}
         alt={name}
         className="rounded-full object-cover flex-shrink-0"
         style={{ width: size, height: size }}
-        onError={(e) => (e.currentTarget.style.display = "none")}
+        onError={() => setImgFailed(true)}
       />
     );
   }
@@ -59,6 +64,8 @@ function Avatar({
 
 export default function Gallery() {
   const [, setLocation] = useLocation();
+  const [ownSheetOpen, setOwnSheetOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   const { data: archive, isLoading } = useGetMatchArchive({
     query: { queryKey: getGetMatchArchiveQueryKey() },
@@ -67,6 +74,8 @@ export default function Gallery() {
   const { data: myProfile } = useGetMyProfile({
     query: { queryKey: getGetMyProfileQueryKey() },
   });
+
+  const myName = myProfile?.displayName ?? "You";
 
   return (
     <div
@@ -82,13 +91,14 @@ export default function Gallery() {
         }}
       >
         <div className="flex items-center gap-3">
+          {/* Section E — own avatar opens own profile sheet */}
           {myProfile && (
             <button
-              onClick={() => setLocation("/settings")}
+              onClick={() => setOwnSheetOpen(true)}
               className="flex-shrink-0 transition-opacity active:opacity-70"
-              aria-label="Open settings"
+              aria-label="View your profile"
             >
-              <AuraRing aura={myProfile.aura} size={32} ringWidth={2}>
+              <AuraRing aura={myProfile.aura} size={32} ringWidth={4}>
                 <Avatar name={myProfile.displayName} avatarUrl={myProfile.avatarUrl} size={32} />
               </AuraRing>
             </button>
@@ -169,7 +179,7 @@ export default function Gallery() {
             >
               {/* Avatar with aura ring */}
               <div className="flex-shrink-0">
-                <AuraRing aura={match.partnerAura} size={56} ringWidth={3}>
+                <AuraRing aura={match.partnerAura} size={56} ringWidth={4}>
                   <Avatar
                     name={match.partnerName}
                     avatarUrl={match.partnerAvatarUrl}
@@ -218,6 +228,94 @@ export default function Gallery() {
             </motion.button>
           ))}
       </div>
+
+      {/* Section E — Own profile sheet */}
+      <DialogPrimitive.Root open={ownSheetOpen} onOpenChange={setOwnSheetOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className="fixed inset-0 z-40 bg-black/50"
+            style={{ backdropFilter: "blur(2px)" }}
+          />
+          <DialogPrimitive.Content
+            aria-describedby={undefined}
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              background: "var(--surface)",
+              borderTop: "1px solid var(--border)",
+              borderRadius: "24px 24px 0 0",
+              maxHeight: "70vh",
+              overflowY: "auto",
+              padding: "20px 24px 48px",
+            }}
+          >
+            <DialogPrimitive.Title className="sr-only">Your profile</DialogPrimitive.Title>
+            <div
+              className="w-10 h-1 rounded-full mx-auto mb-6"
+              style={{ background: "var(--border)" }}
+            />
+
+            <div className="flex flex-col items-center gap-4 mb-6">
+              <AuraRing aura={myProfile?.aura} size={80} ringWidth={4}>
+                <Avatar name={myName} avatarUrl={myProfile?.avatarUrl} size={80} />
+              </AuraRing>
+              <div className="text-center">
+                <p className="font-mono font-semibold text-lg" style={{ color: "var(--my-name, var(--accent))" }}>
+                  {myName}
+                </p>
+                {myProfile?.icebreaker && (
+                  <p
+                    className="text-sm font-serif italic mt-2 leading-relaxed px-2 max-w-xs"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    "{myProfile.icebreaker}"
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Inline theme picker */}
+            <div className="mb-5">
+              <p className="text-xs font-mono uppercase tracking-widest mb-2" style={{ color: "var(--muted)" }}>
+                Theme
+              </p>
+              <ThemePickerInline
+                themes={THEMES}
+                value={theme}
+                onChange={(t) => setTheme(t as ThemeId)}
+              />
+            </div>
+
+            {/* Settings shortcut */}
+            <button
+              onClick={() => {
+                setOwnSheetOpen(false);
+                setLocation("/settings?from=/gallery");
+              }}
+              className="w-full flex items-center justify-between py-3 font-mono text-sm transition-opacity active:opacity-60"
+              style={{ color: "var(--accent)", borderTop: "1px solid var(--border)" }}
+            >
+              <span>Full settings</span>
+              <svg width="8" height="13" viewBox="0 0 8 13" fill="none">
+                <path d="M1 1l6 5.5L1 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <DialogPrimitive.Close
+              className="absolute top-4 right-5 transition-opacity active:opacity-60"
+              style={{ color: "var(--muted)" }}
+              aria-label="Close"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </div>
   );
 }
