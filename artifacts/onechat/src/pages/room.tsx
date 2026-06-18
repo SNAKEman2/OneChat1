@@ -1059,7 +1059,13 @@ function ActiveRoom({
                     whileTap={{ scale: 0.9 }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M14 8L2 2l2.5 6L2 14l12-6z" fill="white" />
+                      <path
+                        d="M8 13V3M4 7l4-4 4 4"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </motion.button>
                 </form>
