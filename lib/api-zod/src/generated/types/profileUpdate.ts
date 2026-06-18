@@ -19,4 +19,6 @@ export interface ProfileUpdate {
      * @maxLength 200
      */
   icebreaker?: string;
+  /** @nullable */
+  aura?: string | null;
 }

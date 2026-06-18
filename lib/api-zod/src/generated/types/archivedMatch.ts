@@ -12,6 +12,10 @@ export interface ArchivedMatch {
   partnerName: string;
   /** @nullable */
   partnerAvatarUrl?: string | null;
+  /** @nullable */
+  partnerIcebreaker?: string | null;
+  /** @nullable */
+  partnerAura?: string | null;
   messageCount: number;
   status: string;
   /** @nullable */

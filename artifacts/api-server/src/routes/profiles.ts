@@ -15,16 +15,23 @@ const avatarUrlSchema = z
   .optional()
   .nullable();
 
+const auraSchema = z
+  .enum(["calm", "curious", "reflective", "optimistic", "passionate"])
+  .optional()
+  .nullable();
+
 const patchProfileSchema = z.object({
   displayName: displayNameSchema.optional(),
   icebreaker: icebreakerSchema.optional(),
   avatarUrl: avatarUrlSchema,
+  aura: auraSchema,
 });
 
 const setupProfileSchema = z.object({
   displayName: displayNameSchema,
   icebreaker: icebreakerSchema,
   avatarUrl: avatarUrlSchema,
+  aura: auraSchema,
 });
 
 router.get("/profiles/me", async (req, res) => {
@@ -60,7 +67,7 @@ router.patch("/profiles/me", async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
 
-  const { displayName, avatarUrl, icebreaker } = parsed.data;
+  const { displayName, avatarUrl, icebreaker, aura } = parsed.data;
 
   try {
     const updateData: Partial<typeof profilesTable.$inferInsert> & { lastActive: Date } = {
@@ -69,6 +76,7 @@ router.patch("/profiles/me", async (req, res) => {
     if (displayName !== undefined) updateData.displayName = displayName;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl ?? null;
     if (icebreaker !== undefined) updateData.icebreaker = icebreaker;
+    if (aura !== undefined) updateData.aura = aura ?? null;
 
     const [updated] = await db
       .update(profilesTable)
@@ -97,7 +105,7 @@ router.post("/profiles/setup", async (req, res) => {
     return res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
   }
 
-  const { displayName, avatarUrl, icebreaker } = parsed.data;
+  const { displayName, avatarUrl, icebreaker, aura } = parsed.data;
 
   try {
     const existing = await db
@@ -117,6 +125,7 @@ router.post("/profiles/setup", async (req, res) => {
         displayName,
         avatarUrl: avatarUrl ?? null,
         icebreaker,
+        aura: aura ?? null,
       })
       .returning();
 
@@ -134,6 +143,7 @@ function serializeProfile(p: typeof profilesTable.$inferSelect) {
     displayName: p.displayName,
     avatarUrl: p.avatarUrl,
     icebreaker: p.icebreaker,
+    aura: p.aura ?? null,
     lastActive: p.lastActive.toISOString(),
     createdAt: p.createdAt.toISOString(),
   };

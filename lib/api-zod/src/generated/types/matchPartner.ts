@@ -13,5 +13,7 @@ export interface MatchPartner {
   avatarUrl: string | null;
   icebreaker: string;
   /** @nullable */
+  aura?: string | null;
+  /** @nullable */
   lastActive?: string | null;
 }

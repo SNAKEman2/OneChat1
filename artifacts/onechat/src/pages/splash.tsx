@@ -41,7 +41,7 @@ export default function Splash() {
       >
         <div
           className="w-20 h-20 flex items-center justify-center rounded-[22px]"
-          style={{ background: "hsl(211 100% 52%)" }}
+          style={{ background: "var(--accent)" }}
         >
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <path
@@ -49,17 +49,17 @@ export default function Splash() {
               fill="white"
               fillOpacity="0.95"
             />
-            <circle cx="13" cy="19" r="2" fill="hsl(211 100% 52%)" />
-            <circle cx="20" cy="19" r="2" fill="hsl(211 100% 52%)" />
-            <circle cx="27" cy="19" r="2" fill="hsl(211 100% 52%)" />
+            <circle cx="13" cy="19" r="2" fill="var(--accent)" />
+            <circle cx="20" cy="19" r="2" fill="var(--accent)" />
+            <circle cx="27" cy="19" r="2" fill="var(--accent)" />
           </svg>
         </div>
 
         <div className="text-center">
-          <h1 className="text-4xl font-serif font-medium text-white tracking-tight">
+          <h1 className="text-4xl font-serif font-medium tracking-tight" style={{ color: "var(--foreground)" }}>
             OneChat
           </h1>
-          <p className="text-sm mt-1.5" style={{ color: "hsl(240 4% 55%)" }}>
+          <p className="text-sm mt-1.5" style={{ color: "var(--muted)" }}>
             One conversation. One person. Every day.
           </p>
         </div>
@@ -75,12 +75,12 @@ export default function Splash() {
         >
           <button
             onClick={login}
-            className="w-full py-3.5 rounded-xl text-white font-mono text-sm font-medium tracking-wide transition-opacity active:opacity-80"
-            style={{ background: "hsl(211 100% 52%)" }}
+            className="w-full py-3.5 rounded-lg text-white font-mono text-sm font-medium tracking-wide transition-opacity active:opacity-80"
+            style={{ background: "var(--accent)" }}
           >
             Sign in with Replit
           </button>
-          <p className="text-xs text-center" style={{ color: "hsl(240 4% 45%)" }}>
+          <p className="text-xs text-center" style={{ color: "var(--muted)" }}>
             Free · No ads · One match per day
           </p>
         </motion.div>
@@ -97,7 +97,7 @@ export default function Splash() {
             <motion.div
               key={i}
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: "hsl(240 4% 55%)" }}
+              style={{ background: "var(--muted)" }}
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
             />

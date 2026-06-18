@@ -6,6 +6,8 @@ import { useAuth } from "@workspace/replit-auth-web";
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { compressImage } from "@/lib/compress-image";
+import { AuraPicker, ThemePickerInline, type AuraType } from "@/components/aura-ring";
+import { useTheme, THEMES, type ThemeId } from "@/hooks/use-theme";
 
 function Avatar({
   name,
@@ -48,6 +50,7 @@ export default function Settings() {
   const [, setLocation] = useLocation();
   const { logout } = useAuth();
   const queryClient = useQueryClient();
+  const { theme, setTheme } = useTheme();
 
   const { data: profile } = useGetMyProfile({
     query: { queryKey: getGetMyProfileQueryKey() },
@@ -55,6 +58,7 @@ export default function Settings() {
 
   const [displayName, setDisplayName] = useState("");
   const [icebreaker, setIcebreaker] = useState("");
+  const [aura, setAura] = useState<AuraType | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarData, setAvatarData] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
@@ -69,6 +73,7 @@ export default function Settings() {
       setDisplayName(profile.displayName ?? "");
       setIcebreaker(profile.icebreaker ?? "");
       setAvatarPreview(profile.avatarUrl ?? null);
+      setAura((profile.aura as AuraType | null) ?? null);
       setInitialized(true);
     }
   }, [profile, initialized]);
@@ -90,10 +95,16 @@ export default function Settings() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const patch: { displayName?: string; icebreaker?: string; avatarUrl?: string } = {};
+    const patch: {
+      displayName?: string;
+      icebreaker?: string;
+      avatarUrl?: string;
+      aura?: string | null;
+    } = {};
     if (displayName.trim()) patch.displayName = displayName.trim();
     if (icebreaker.trim()) patch.icebreaker = icebreaker.trim();
     if (avatarData) patch.avatarUrl = avatarData;
+    patch.aura = aura;
 
     updateProfile.mutate(
       { data: patch },
@@ -190,6 +201,21 @@ export default function Settings() {
           />
         </div>
 
+        {/* Theme picker */}
+        <div className="flex flex-col gap-2">
+          <label
+            className="text-xs font-mono uppercase tracking-widest"
+            style={{ color: "var(--muted)" }}
+          >
+            Theme
+          </label>
+          <ThemePickerInline
+            themes={THEMES}
+            value={theme}
+            onChange={(t) => setTheme(t as ThemeId)}
+          />
+        </div>
+
         {/* Display name */}
         <div className="flex flex-col gap-1.5">
           <label
@@ -240,6 +266,20 @@ export default function Settings() {
           />
           <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
             Shown to your match at the top of the chat.
+          </p>
+        </div>
+
+        {/* Aura picker */}
+        <div className="flex flex-col gap-2">
+          <label
+            className="text-xs font-mono uppercase tracking-widest"
+            style={{ color: "var(--muted)" }}
+          >
+            Aura <span style={{ color: "var(--border)" }}>— optional</span>
+          </label>
+          <AuraPicker value={aura} onChange={setAura} />
+          <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
+            Displayed as a ring around your avatar everywhere in the app.
           </p>
         </div>
 

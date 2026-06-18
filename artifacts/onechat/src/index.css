@@ -25,8 +25,16 @@
   --radius-full: 9999px;
 }
 
+/* ─────── BRAND (never changes across themes) ─────── */
 :root {
-  /* Discord-style dark */
+  --accent:       #5865F2;
+  --accent-hover: #4752C4;
+  --radius:       8px;
+}
+
+/* ─────── Midnight Void (default dark) ─────── */
+:root,
+[data-theme="midnight-void"] {
   --background:  #313338;
   --surface:     #2B2D31;
   --surface-2:   #1E1F22;
@@ -34,11 +42,34 @@
   --foreground:  #DBDEE1;
   --muted:       #80848E;
   --border:      #3F4147;
-  --accent:      #5865F2;
-  --accent-hover: #4752C4;
   --my-name:     #80A7F7;
   --their-name:  #56d364;
-  --radius:      8px;
+}
+
+/* ─────── Slate Dusk (mid-tone twilight) ─────── */
+[data-theme="slate-dusk"] {
+  --background:  #2E3148;
+  --surface:     #272A3D;
+  --surface-2:   #1E2030;
+  --input-bg:    #363A52;
+  --foreground:  #E2E4F0;
+  --muted:       #7C82A6;
+  --border:      #3D4160;
+  --my-name:     #8FA8E8;
+  --their-name:  #5CC87A;
+}
+
+/* ─────── Frost Air (clean light) ─────── */
+[data-theme="frost-air"] {
+  --background:  #F2F5F9;
+  --surface:     #FFFFFF;
+  --surface-2:   #E8EEF5;
+  --input-bg:    #EDF1F7;
+  --foreground:  #1A2332;
+  --muted:       #6B7C93;
+  --border:      #CDD6E2;
+  --my-name:     #3B5EA6;
+  --their-name:  #1A7A3A;
 }
 
 @layer base {

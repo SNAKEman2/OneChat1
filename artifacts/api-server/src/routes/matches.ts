@@ -89,6 +89,7 @@ router.get("/matches/today", async (req, res) => {
               displayName: partnerProfile.displayName,
               avatarUrl: partnerProfile.avatarUrl,
               icebreaker: partnerProfile.icebreaker,
+              aura: partnerProfile.aura ?? null,
               lastActive: partnerProfile.lastActive.toISOString(),
             }
           : null,
@@ -179,6 +180,7 @@ router.get("/matches/today", async (req, res) => {
             displayName: partnerProfile.displayName,
             avatarUrl: partnerProfile.avatarUrl,
             icebreaker: partnerProfile.icebreaker,
+            aura: partnerProfile.aura ?? null,
             lastActive: partnerProfile.lastActive.toISOString(),
           }
         : null,
@@ -300,6 +302,8 @@ router.get("/matches/archive", async (req, res) => {
           matchDate: match.matchDate,
           partnerName: partnerProfile?.displayName ?? "Unknown",
           partnerAvatarUrl: partnerProfile?.avatarUrl ?? null,
+          partnerIcebreaker: partnerProfile?.icebreaker ?? null,
+          partnerAura: partnerProfile?.aura ?? null,
           messageCount: msgCountResult?.count ?? 0,
           status: match.status,
           firstMessage: firstMsg?.content ?? null,

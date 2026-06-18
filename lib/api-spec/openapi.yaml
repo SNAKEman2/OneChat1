@@ -415,6 +415,8 @@ components:
           type: ["string", "null"]
         icebreaker:
           type: string
+        aura:
+          type: ["string", "null"]
         lastActive:
           type: string
         createdAt:
@@ -434,6 +436,8 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        aura:
+          type: ["string", "null"]
 
     ProfileUpdate:
       type: object
@@ -448,6 +452,8 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+        aura:
+          type: ["string", "null"]
 
     MatchPartner:
       type: object
@@ -461,6 +467,8 @@ components:
           type: ["string", "null"]
         icebreaker:
           type: string
+        aura:
+          type: ["string", "null"]
         lastActive:
           type: ["string", "null"]
 
@@ -528,6 +536,10 @@ components:
         partnerName:
           type: string
         partnerAvatarUrl:
+          type: ["string", "null"]
+        partnerIcebreaker:
+          type: ["string", "null"]
+        partnerAura:
           type: ["string", "null"]
         messageCount:
           type: integer

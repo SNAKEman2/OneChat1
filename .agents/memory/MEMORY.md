@@ -1,3 +1,4 @@
 - [OneChat design system](onechat-design.md) — Discord-dark v3: #313338 bg, both-sides Discord layout (no bubbles), reply-to, slide-up input, icebreaker status banner.
 - [OneChat DB uniqueness](onechat-db.md) — one-match-per-day is enforced at the DB level with unique indexes, not just in application code.
 - [replit-auth-web composite](replit-auth-web-composite.md) — lib/replit-auth-web must have composite:true to be referenced from artifact tsconfigs.
+- [Phase 1.5 identity layer](phase-1.5-identity.md) — theme system (3 themes, localStorage+initTheme), aura rings (5 auras, server-stored DB column), full gallery/room/setup/settings updates; Section I docs in .local/docs/technical-investigation.md.

@@ -4,13 +4,17 @@ import { useSetupProfile } from "@workspace/api-client-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@workspace/replit-auth-web";
 import { compressImage } from "@/lib/compress-image";
+import { AuraPicker, ThemePickerInline, type AuraType } from "@/components/aura-ring";
+import { useTheme, THEMES, type ThemeId } from "@/hooks/use-theme";
 
 export default function Setup() {
   const [, setLocation] = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const [displayName, setDisplayName] = useState("");
   const [icebreaker, setIcebreaker] = useState("");
+  const [aura, setAura] = useState<AuraType | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarData, setAvatarData] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
@@ -34,7 +38,7 @@ export default function Setup() {
       setAvatarPreview(data);
       setAvatarData(data);
     } catch {
-      /* ignore compression errors */
+      setAvatarError(true);
     } finally {
       setCompressing(false);
     }
@@ -44,7 +48,14 @@ export default function Setup() {
     e.preventDefault();
     if (!displayName.trim() || !icebreaker.trim()) return;
     setupProfile.mutate(
-      { data: { displayName, icebreaker, avatarUrl: avatarData ?? undefined } },
+      {
+        data: {
+          displayName,
+          icebreaker,
+          avatarUrl: avatarData ?? undefined,
+          aura: aura ?? undefined,
+        },
+      },
       { onSuccess: () => setLocation("/room") }
     );
   };
@@ -68,7 +79,7 @@ export default function Setup() {
 
       <motion.form
         onSubmit={handleSubmit}
-        className="flex-1 flex flex-col px-5 py-6 gap-6 max-w-md mx-auto w-full"
+        className="flex-1 flex flex-col px-5 py-6 gap-6 max-w-md mx-auto w-full overflow-y-auto"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
@@ -134,8 +145,7 @@ export default function Setup() {
             {avatarPreview ? "Tap to change" : "Upload a photo or GIF"}
           </p>
 
-          {/* Upload error message (Item 1) */}
-          {(setupProfile.isError && avatarData) || avatarError ? (
+          {((setupProfile.isError && avatarData) || avatarError) && (
             <motion.p
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -144,7 +154,7 @@ export default function Setup() {
             >
               That file is too large or couldn't be uploaded — try a smaller image or GIF.
             </motion.p>
-          ) : null}
+          )}
 
           {setupProfile.isError && !avatarData && (
             <motion.p
@@ -163,6 +173,18 @@ export default function Setup() {
             accept="image/*,image/gif"
             className="hidden"
             onChange={handleFile}
+          />
+        </div>
+
+        {/* Theme picker */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
+            Theme
+          </label>
+          <ThemePickerInline
+            themes={THEMES}
+            value={theme}
+            onChange={(t) => setTheme(t as ThemeId)}
           />
         </div>
 
@@ -211,6 +233,17 @@ export default function Setup() {
           />
           <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
             Pinned at the top of your chat as a status.
+          </p>
+        </div>
+
+        {/* Aura picker */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--muted)" }}>
+            Aura <span style={{ color: "var(--border)" }}>— optional</span>
+          </label>
+          <AuraPicker value={aura} onChange={setAura} />
+          <p className="text-xs font-mono" style={{ color: "var(--muted)" }}>
+            Displayed as a ring around your avatar.
           </p>
         </div>
 

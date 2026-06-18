@@ -105,6 +105,7 @@ export const GetMyProfileResponse = zod.object({
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
   "icebreaker": zod.string(),
+  "aura": zod.string().nullish(),
   "lastActive": zod.string(),
   "createdAt": zod.string()
 })
@@ -122,7 +123,8 @@ export const updateMyProfileBodyIcebreakerMax = 200;
 export const UpdateMyProfileBody = zod.object({
   "displayName": zod.string().min(1).max(updateMyProfileBodyDisplayNameMax).optional(),
   "avatarUrl": zod.string().nullish(),
-  "icebreaker": zod.string().min(1).max(updateMyProfileBodyIcebreakerMax).optional()
+  "icebreaker": zod.string().min(1).max(updateMyProfileBodyIcebreakerMax).optional(),
+  "aura": zod.string().nullish()
 })
 
 export const UpdateMyProfileResponse = zod.object({
@@ -131,6 +133,7 @@ export const UpdateMyProfileResponse = zod.object({
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
   "icebreaker": zod.string(),
+  "aura": zod.string().nullish(),
   "lastActive": zod.string(),
   "createdAt": zod.string()
 })
@@ -148,7 +151,8 @@ export const setupProfileBodyIcebreakerMax = 200;
 export const SetupProfileBody = zod.object({
   "displayName": zod.string().min(1).max(setupProfileBodyDisplayNameMax),
   "avatarUrl": zod.string().nullish(),
-  "icebreaker": zod.string().min(1).max(setupProfileBodyIcebreakerMax)
+  "icebreaker": zod.string().min(1).max(setupProfileBodyIcebreakerMax),
+  "aura": zod.string().nullish()
 })
 
 
@@ -164,6 +168,7 @@ export const GetTodayMatchResponse = zod.object({
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
   "icebreaker": zod.string(),
+  "aura": zod.string().nullish(),
   "lastActive": zod.string().nullish()
 }),zod.null()]).optional(),
   "matchDate": zod.string().nullish(),
@@ -190,6 +195,7 @@ export const EndMatchResponse = zod.object({
   "displayName": zod.string(),
   "avatarUrl": zod.string().nullable(),
   "icebreaker": zod.string(),
+  "aura": zod.string().nullish(),
   "lastActive": zod.string().nullish()
 }),zod.null()]).optional(),
   "matchDate": zod.string().nullish(),
@@ -205,6 +211,8 @@ export const GetMatchArchiveResponseItem = zod.object({
   "matchDate": zod.string(),
   "partnerName": zod.string(),
   "partnerAvatarUrl": zod.string().nullish(),
+  "partnerIcebreaker": zod.string().nullish(),
+  "partnerAura": zod.string().nullish(),
   "messageCount": zod.number(),
   "status": zod.string(),
   "firstMessage": zod.string().nullish()

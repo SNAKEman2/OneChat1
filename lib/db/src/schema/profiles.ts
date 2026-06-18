@@ -8,6 +8,7 @@ export const profilesTable = pgTable("profiles", {
   displayName: text("display_name").notNull(),
   avatarUrl: text("avatar_url"),
   icebreaker: text("icebreaker").notNull(),
+  aura: text("aura"),
   lastActive: timestamp("last_active", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

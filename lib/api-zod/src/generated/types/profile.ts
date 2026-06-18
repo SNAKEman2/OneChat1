@@ -13,6 +13,8 @@ export interface Profile {
   /** @nullable */
   avatarUrl: string | null;
   icebreaker: string;
+  /** @nullable */
+  aura?: string | null;
   lastActive: string;
   createdAt: string;
 }

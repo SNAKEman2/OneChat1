@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { AuraRing } from "@/components/aura-ring";
 
 /* ─── Avatar ─────────────────────────────────────────────────── */
 function Avatar({
@@ -143,12 +144,14 @@ function Lounge({ profile }: { profile: any }) {
               className="flex-shrink-0 transition-opacity active:opacity-70"
               aria-label="Open settings"
             >
-              <Avatar
-                name={profile.displayName}
-                avatarUrl={profile.avatarUrl}
-                size={36}
-                colorVar="var(--accent)"
-              />
+              <AuraRing aura={profile.aura} size={36} ringWidth={2}>
+                <Avatar
+                  name={profile.displayName}
+                  avatarUrl={profile.avatarUrl}
+                  size={36}
+                  colorVar="var(--accent)"
+                />
+              </AuraRing>
             </button>
           )}
           <div>
@@ -342,6 +345,11 @@ function ActiveRoom({
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [partnerSheetOpen, setPartnerSheetOpen] = useState(false);
 
+  // Icebreaker anchor (Section G)
+  const [icebreakerVisible, setIcebreakerVisible] = useState(false);
+  const icebreakerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Ignition
   const [ignitionMode, setIgnitionMode] = useState<IMode | null>(null);
   const handleIgnitionDone = useCallback((mode: IMode) => setIgnitionMode(mode), []);
@@ -438,6 +446,25 @@ function ActiveRoom({
     ta.style.height = `${Math.min(ta.scrollHeight, 96)}px`;
   };
 
+  const showIcebreaker = useCallback(() => {
+    if (!matchState.partner?.icebreaker) return;
+    setIcebreakerVisible(true);
+    if (icebreakerTimerRef.current) clearTimeout(icebreakerTimerRef.current);
+    icebreakerTimerRef.current = setTimeout(() => setIcebreakerVisible(false), 3500);
+  }, [matchState.partner?.icebreaker]);
+
+  const handleScrollPause = useCallback(() => {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(showIcebreaker, 1500);
+  }, [showIcebreaker]);
+
+  useEffect(() => {
+    return () => {
+      if (icebreakerTimerRef.current) clearTimeout(icebreakerTimerRef.current);
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, []);
+
   const startReply = (msg: Message, senderName: string) => {
     setReplyTo({ id: msg.id, content: msg.content, senderName });
     openInput();
@@ -493,25 +520,28 @@ function ActiveRoom({
           </svg>
         </button>
 
-        {/* Tappable partner block → profile sheet (Items 5, 6) */}
+        {/* Tappable partner block → profile sheet */}
         <button
           onClick={() => setPartnerSheetOpen(true)}
           className="flex-1 min-w-0 flex items-center gap-2.5 text-left transition-opacity active:opacity-70"
           aria-label="View partner profile"
         >
-          {/* Avatar with live presence dot (Item 6) */}
+          {/* Avatar with aura ring + live presence dot */}
           <div className="relative flex-shrink-0">
-            <Avatar
-              name={partnerName}
-              avatarUrl={partner?.avatarUrl}
-              size={36}
-              colorVar="var(--their-name)"
-            />
+            <AuraRing aura={partner?.aura} size={36} ringWidth={2}>
+              <Avatar
+                name={partnerName}
+                avatarUrl={partner?.avatarUrl}
+                size={36}
+                colorVar="var(--their-name)"
+              />
+            </AuraRing>
             <div
               className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
               style={{
                 background: onlineStatus[partnerUserId] ? "var(--their-name)" : "var(--muted)",
                 borderColor: "var(--surface)",
+                zIndex: 1,
               }}
             />
           </div>
@@ -579,8 +609,13 @@ function ActiveRoom({
       {/* ── Messages ── */}
       <div
         className="flex-1 overflow-y-auto hide-scrollbar px-4 py-4"
+        onScroll={handleScrollPause}
         onClick={() => {
-          if (!inputOpen && !isLocked) openInput();
+          if (inputOpen) {
+            showIcebreaker();
+          } else if (!isLocked) {
+            openInput();
+          }
         }}
         style={{ cursor: isLocked ? "default" : "text" }}
       >
@@ -626,14 +661,16 @@ function ActiveRoom({
               transition={{ duration: 0.2 }}
               className={`flex gap-3 mb-4 ${group.isMe ? "flex-row-reverse" : "flex-row"}`}
             >
-              {/* Avatar column */}
+              {/* Avatar column with aura ring */}
               <div className="flex-shrink-0 pt-0.5">
-                <Avatar
-                  name={group.isMe ? myName : partnerName}
-                  avatarUrl={group.isMe ? myProfile?.avatarUrl : partner?.avatarUrl}
-                  size={40}
-                  colorVar={group.isMe ? "var(--accent)" : "var(--their-name)"}
-                />
+                <AuraRing aura={group.isMe ? myProfile?.aura : partner?.aura} size={40} ringWidth={2}>
+                  <Avatar
+                    name={group.isMe ? myName : partnerName}
+                    avatarUrl={group.isMe ? myProfile?.avatarUrl : partner?.avatarUrl}
+                    size={40}
+                    colorVar={group.isMe ? "var(--accent)" : "var(--their-name)"}
+                  />
+                </AuraRing>
               </div>
 
               {/* Content column */}
@@ -717,7 +754,7 @@ function ActiveRoom({
                         {/* Reply button */}
                         {!isLocked && (
                           <button
-                            className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 active:opacity-100 flex-shrink-0 p-1 rounded transition-opacity"
+                            className="opacity-20 group-hover/msg:opacity-80 focus:opacity-80 active:opacity-100 flex-shrink-0 p-1 rounded transition-opacity"
                             style={{ color: "var(--muted)" }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -762,12 +799,14 @@ function ActiveRoom({
               exit={{ opacity: 0 }}
               className="flex items-center gap-3 mb-4"
             >
-              <Avatar
-                name={partnerName}
-                avatarUrl={partner?.avatarUrl}
-                size={40}
-                colorVar="var(--their-name)"
-              />
+              <AuraRing aura={partner?.aura} size={40} ringWidth={2}>
+                <Avatar
+                  name={partnerName}
+                  avatarUrl={partner?.avatarUrl}
+                  size={40}
+                  colorVar="var(--their-name)"
+                />
+              </AuraRing>
               <div
                 className="flex items-center gap-1 px-3 py-2 rounded-lg"
                 style={{ background: "var(--surface)" }}
@@ -809,6 +848,41 @@ function ActiveRoom({
                   View in Memories →
                 </button>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Icebreaker anchor pill (Section G) ── */}
+        <AnimatePresence>
+          {icebreakerVisible && partner?.icebreaker && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.22 }}
+              className="sticky bottom-3 flex justify-center pointer-events-none"
+            >
+              <button
+                className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full font-serif text-sm italic transition-opacity active:opacity-70"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  color: "var(--foreground)",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPartnerSheetOpen(true);
+                  setIcebreakerVisible(false);
+                }}
+              >
+                <span style={{ fontSize: "0.9em" }}>💭</span>
+                <span style={{ color: "var(--muted)" }}>
+                  {partner.icebreaker.length > 52
+                    ? partner.icebreaker.slice(0, 52) + "…"
+                    : partner.icebreaker}
+                </span>
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -969,6 +1043,7 @@ function ActiveRoom({
                         caretColor: "var(--accent)",
                         maxHeight: "96px",
                         overflowY: "auto",
+                        transition: "height 0.12s ease",
                       }}
                       maxLength={2000}
                     />
@@ -978,8 +1053,12 @@ function ActiveRoom({
                   <motion.button
                     type="submit"
                     disabled={!input.trim()}
-                    className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-30 transition-opacity mb-0.5"
-                    style={{ background: "var(--accent)" }}
+                    className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mb-0.5"
+                    style={{
+                      background: input.trim() ? "var(--accent)" : "var(--border)",
+                      transition: "background 0.15s ease, opacity 0.15s ease",
+                      opacity: input.trim() ? 1 : 0.45,
+                    }}
                     whileTap={{ scale: 0.9 }}
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -1079,12 +1158,14 @@ function ActiveRoom({
             />
 
             <div className="flex flex-col items-center gap-4">
-              <Avatar
-                name={partnerName}
-                avatarUrl={partner?.avatarUrl}
-                size={80}
-                colorVar="var(--their-name)"
-              />
+              <AuraRing aura={partner?.aura} size={80} ringWidth={4}>
+                <Avatar
+                  name={partnerName}
+                  avatarUrl={partner?.avatarUrl}
+                  size={80}
+                  colorVar="var(--their-name)"
+                />
+              </AuraRing>
               <div className="text-center">
                 <p
                   className="font-mono font-semibold text-lg"

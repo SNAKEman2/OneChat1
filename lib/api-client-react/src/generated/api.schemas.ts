@@ -58,6 +58,8 @@ export interface Profile {
   /** @nullable */
   avatarUrl: string | null;
   icebreaker: string;
+  /** @nullable */
+  aura?: string | null;
   lastActive: string;
   createdAt: string;
 }
@@ -75,6 +77,8 @@ export interface ProfileSetup {
      * @maxLength 200
      */
   icebreaker: string;
+  /** @nullable */
+  aura?: string | null;
 }
 
 export interface ProfileUpdate {
@@ -90,6 +94,8 @@ export interface ProfileUpdate {
      * @maxLength 200
      */
   icebreaker?: string;
+  /** @nullable */
+  aura?: string | null;
 }
 
 export interface MatchPartner {
@@ -98,6 +104,8 @@ export interface MatchPartner {
   /** @nullable */
   avatarUrl: string | null;
   icebreaker: string;
+  /** @nullable */
+  aura?: string | null;
   /** @nullable */
   lastActive?: string | null;
 }
@@ -154,6 +162,10 @@ export interface ArchivedMatch {
   partnerName: string;
   /** @nullable */
   partnerAvatarUrl?: string | null;
+  /** @nullable */
+  partnerIcebreaker?: string | null;
+  /** @nullable */
+  partnerAura?: string | null;
   messageCount: number;
   status: string;
   /** @nullable */
