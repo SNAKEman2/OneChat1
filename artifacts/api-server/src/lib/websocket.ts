@@ -4,6 +4,9 @@ import type { Server } from "http";
 import { parse as parseCookie } from "cookie";
 import { logger } from "./logger";
 import { getSession, SESSION_COOKIE } from "./auth";
+import { db } from "@workspace/db";
+import { matchesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 interface Client {
   ws: WebSocket;
@@ -19,6 +22,8 @@ interface IgnitionRoom {
 
 const clients: Client[] = [];
 const ignitionRooms = new Map<string, IgnitionRoom>();
+// Track expiry timers so we can broadcast room_expired
+const expiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 export function broadcastToMatch(matchId: string, payload: unknown) {
   const data = JSON.stringify(payload);
@@ -71,16 +76,29 @@ function maybeStartIgnition(matchId: string) {
   logger.info({ matchId }, "Ignition started");
 }
 
-/** Section J — resolve verified userId from WS upgrade request */
+// Section E3 — schedule a room_expired broadcast at UTC midnight
+function scheduleRoomExpiry(matchId: string, expiresAt: Date) {
+  if (expiryTimers.has(matchId)) return;
+  const delay = expiresAt.getTime() - Date.now();
+  if (delay <= 0) return;
+
+  const timer = setTimeout(() => {
+    logger.info({ matchId }, "Broadcasting room_expired");
+    broadcastToMatch(matchId, { type: "room_expired", data: { matchId } });
+    expiryTimers.delete(matchId);
+  }, Math.min(delay, 2147483647)); // clamp to max safe timeout
+
+  expiryTimers.set(matchId, timer);
+}
+
+/** Verify session + membership: returns userId only if user is in the match */
 async function getVerifiedUserId(req: IncomingMessage): Promise<string | null> {
-  // Try Authorization: Bearer <sid> header first (API client fallback)
   const authHeader = req.headers["authorization"];
   let sid: string | undefined;
 
   if (authHeader?.startsWith("Bearer ")) {
     sid = authHeader.slice(7);
   } else {
-    // Parse sid from cookie
     const cookies = parseCookie(req.headers.cookie ?? "");
     sid = cookies[SESSION_COOKIE];
   }
@@ -92,6 +110,22 @@ async function getVerifiedUserId(req: IncomingMessage): Promise<string | null> {
     return session?.user?.id ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Critical — verify user is actually a participant in this match (fixes IDOR) */
+async function verifyMatchMembership(userId: string, matchId: string): Promise<boolean> {
+  try {
+    const [match] = await db
+      .select({ user1Id: matchesTable.user1Id, user2Id: matchesTable.user2Id })
+      .from(matchesTable)
+      .where(eq(matchesTable.id, matchId))
+      .limit(1);
+
+    if (!match) return false;
+    return match.user1Id === userId || match.user2Id === userId;
+  } catch {
+    return false;
   }
 }
 
@@ -107,10 +141,17 @@ export function setupWebSocket(server: Server) {
       return;
     }
 
-    // Section J — verify session before trusting userId
+    // Step 1: verify session
     const verifiedUserId = await getVerifiedUserId(req);
     if (!verifiedUserId) {
       ws.close(1008, "Unauthorized: valid session required");
+      return;
+    }
+
+    // Step 2: verify match membership (IDOR fix)
+    const isMember = await verifyMatchMembership(verifiedUserId, matchId);
+    if (!isMember) {
+      ws.close(1008, "Forbidden: not a participant in this match");
       return;
     }
 
@@ -119,6 +160,13 @@ export function setupWebSocket(server: Server) {
     clients.push(client);
 
     logger.info({ matchId, userId }, "WS client connected (verified)");
+
+    // Compute midnight UTC for room expiry broadcast
+    const now = new Date();
+    const midnight = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0)
+    );
+    scheduleRoomExpiry(matchId, midnight);
 
     broadcastToMatch(matchId, {
       type: "presence",
@@ -150,6 +198,17 @@ export function setupWebSocket(server: Server) {
               resolveIgnition(matchId);
             }
           }
+        } else if (msg.type === "read") {
+          // A3 — partner read receipts: forward to other participants
+          const data = JSON.stringify({
+            type: "read",
+            data: { userId, lastReadAt: new Date().toISOString() },
+          });
+          clients
+            .filter((c) => c.matchId === matchId && c.userId !== userId)
+            .forEach((c) => {
+              if (c.ws.readyState === WebSocket.OPEN) c.ws.send(data);
+            });
         }
       } catch (err) {
         logger.warn({ err }, "WS message parse error");

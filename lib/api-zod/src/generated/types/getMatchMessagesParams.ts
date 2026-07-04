@@ -3,18 +3,17 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export type GetMatchMessagesParams = {
 /**
- * Return messages created before this message ID (cursor for pagination)
+ * Return messages created before this message ID
  */
 before?: string;
 /**
- * Maximum number of messages to return (1-100, default 100)
  * @minimum 1
- * @maximum 100
+ * @maximum 50
  */
 limit?: number;
 };

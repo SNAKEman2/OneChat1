@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface ArchivedMatch {
@@ -20,4 +20,9 @@ export interface ArchivedMatch {
   status: string;
   /** @nullable */
   firstMessage?: string | null;
+  /**
+     * Duration of conversation in minutes (time between first and last message)
+     * @nullable
+     */
+  conversationDuration?: number | null;
 }

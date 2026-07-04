@@ -3,13 +3,12 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import * as zod from 'zod';
 
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
@@ -204,8 +203,21 @@ export const EndMatchResponse = zod.object({
 
 
 /**
- * @summary Get all past matches for the archive/gallery
+ * @summary Get past matches with search and pagination
  */
+export const getMatchArchiveQueryPageDefault = 1;
+
+export const getMatchArchiveQueryLimitDefault = 20;
+export const getMatchArchiveQueryLimitMax = 50;
+
+
+
+export const GetMatchArchiveQueryParams = zod.object({
+  "q": zod.coerce.string().optional().describe('Search by partner name, icebreaker, or message content'),
+  "page": zod.coerce.number().min(1).default(getMatchArchiveQueryPageDefault),
+  "limit": zod.coerce.number().min(1).max(getMatchArchiveQueryLimitMax).default(getMatchArchiveQueryLimitDefault)
+})
+
 export const GetMatchArchiveResponseItem = zod.object({
   "matchId": zod.string(),
   "matchDate": zod.string(),
@@ -215,26 +227,27 @@ export const GetMatchArchiveResponseItem = zod.object({
   "partnerAura": zod.string().nullish(),
   "messageCount": zod.number(),
   "status": zod.string(),
-  "firstMessage": zod.string().nullish()
+  "firstMessage": zod.string().nullish(),
+  "conversationDuration": zod.number().nullish().describe('Duration of conversation in minutes (time between first and last message)')
 })
 export const GetMatchArchiveResponse = zod.array(GetMatchArchiveResponseItem)
 
 
 /**
- * @summary Get messages for a match (supports cursor pagination)
+ * @summary Get messages for a match (cursor pagination)
  */
 export const GetMatchMessagesParams = zod.object({
   "matchId": zod.coerce.string()
 })
 
-export const getMatchMessagesQueryLimitDefault = 100;
-export const getMatchMessagesQueryLimitMax = 100;
+export const getMatchMessagesQueryLimitDefault = 30;
+export const getMatchMessagesQueryLimitMax = 50;
 
 
 
 export const GetMatchMessagesQueryParams = zod.object({
-  "before": zod.coerce.string().optional().describe('Return messages created before this message ID (cursor for pagination)'),
-  "limit": zod.coerce.number().min(1).max(getMatchMessagesQueryLimitMax).default(getMatchMessagesQueryLimitDefault).describe('Maximum number of messages to return (1-100, default 100)')
+  "before": zod.coerce.string().optional().describe('Return messages created before this message ID'),
+  "limit": zod.coerce.number().min(1).max(getMatchMessagesQueryLimitMax).default(getMatchMessagesQueryLimitDefault)
 })
 
 export const GetMatchMessagesResponseItem = zod.object({
@@ -243,6 +256,8 @@ export const GetMatchMessagesResponseItem = zod.object({
   "senderId": zod.string(),
   "content": zod.string(),
   "replyToId": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "readAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const GetMatchMessagesResponse = zod.array(GetMatchMessagesResponseItem)
@@ -260,8 +275,117 @@ export const sendMessageBodyContentMax = 2000;
 
 
 export const SendMessageBody = zod.object({
-  "content": zod.string().min(1).max(sendMessageBodyContentMax),
-  "replyToId": zod.string().nullish()
+  "content": zod.string().max(sendMessageBodyContentMax).optional(),
+  "replyToId": zod.string().nullish(),
+  "imageUrl": zod.string().nullish()
+})
+
+
+/**
+ * @summary Mark messages as read (triggers read receipt to partner)
+ */
+export const MarkMessagesReadParams = zod.object({
+  "matchId": zod.coerce.string()
+})
+
+export const MarkMessagesReadResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get reactions for a message
+ */
+export const GetMessageReactionsParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
+})
+
+export const GetMessageReactionsResponseItem = zod.object({
+  "emoji": zod.string(),
+  "count": zod.number(),
+  "byMe": zod.boolean()
+})
+export const GetMessageReactionsResponse = zod.array(GetMessageReactionsResponseItem)
+
+
+/**
+ * @summary Add a reaction to a message
+ */
+export const AddReactionParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
+})
+
+export const AddReactionBody = zod.object({
+  "emoji": zod.string()
+})
+
+
+/**
+ * @summary Remove a reaction from a message
+ */
+export const RemoveReactionParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string(),
+  "emoji": zod.coerce.string()
+})
+
+export const RemoveReactionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Report a user
+ */
+export const createReportBodyDetailsMax = 1000;
+
+
+
+export const CreateReportBody = zod.object({
+  "reportedUserId": zod.string(),
+  "matchId": zod.string().nullish(),
+  "reason": zod.enum(['spam', 'harassment', 'inappropriate', 'other']),
+  "details": zod.string().max(createReportBodyDetailsMax).nullish()
+})
+
+
+/**
+ * @summary List users blocked by the current user
+ */
+export const GetBlockListResponseItem = zod.object({
+  "id": zod.string(),
+  "blockedId": zod.string(),
+  "createdAt": zod.string()
+})
+export const GetBlockListResponse = zod.array(GetBlockListResponseItem)
+
+
+/**
+ * @summary Unblock a user
+ */
+export const UnblockUserParams = zod.object({
+  "blockedId": zod.coerce.string()
+})
+
+export const UnblockUserResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Request a presigned upload URL for direct GCS upload
+ */
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string(),
+  "size": zod.number(),
+  "contentType": zod.string()
+})
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string(),
+  "objectPath": zod.string()
 })
 
 

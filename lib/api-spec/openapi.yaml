@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: OneChat API specification
 servers:
   - url: /api
@@ -17,8 +17,14 @@ tags:
     description: Daily match operations
   - name: messages
     description: Chat message operations
+  - name: reactions
+    description: Message reaction operations
   - name: blocks
     description: Block operations
+  - name: moderation
+    description: Report and moderation operations
+  - name: storage
+    description: Object storage operations
 
 paths:
   /healthz:
@@ -26,7 +32,6 @@ paths:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -250,7 +255,29 @@ paths:
     get:
       operationId: getMatchArchive
       tags: [matches]
-      summary: Get all past matches for the archive/gallery
+      summary: Get past matches with search and pagination
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Search by partner name, icebreaker, or message content
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
       responses:
         "200":
           description: List of archived matches
@@ -265,7 +292,7 @@ paths:
     get:
       operationId: getMatchMessages
       tags: [messages]
-      summary: Get messages for a match (supports cursor pagination)
+      summary: Get messages for a match (cursor pagination)
       parameters:
         - name: matchId
           in: path
@@ -275,18 +302,17 @@ paths:
         - name: before
           in: query
           required: false
-          description: Return messages created before this message ID (cursor for pagination)
+          description: Return messages created before this message ID
           schema:
             type: string
         - name: limit
           in: query
           required: false
-          description: Maximum number of messages to return (1-100, default 100)
           schema:
             type: integer
             minimum: 1
-            maximum: 100
-            default: 100
+            maximum: 50
+            default: 30
       responses:
         "200":
           description: List of messages (oldest first)
@@ -322,6 +348,180 @@ paths:
         "403":
           description: Match is not active or expired
 
+  /matches/{matchId}/messages/read:
+    post:
+      operationId: markMessagesRead
+      tags: [messages]
+      summary: Mark messages as read (triggers read receipt to partner)
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Read event broadcast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /matches/{matchId}/messages/{messageId}/reactions:
+    get:
+      operationId: getMessageReactions
+      tags: [reactions]
+      summary: Get reactions for a message
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reaction summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReactionSummary"
+    post:
+      operationId: addReaction
+      tags: [reactions]
+      summary: Add a reaction to a message
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReactionInput"
+      responses:
+        "201":
+          description: Reaction added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReactionAdded"
+
+  /matches/{matchId}/messages/{messageId}/reactions/{emoji}:
+    delete:
+      operationId: removeReaction
+      tags: [reactions]
+      summary: Remove a reaction from a message
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: emoji
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reaction removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /reports:
+    post:
+      operationId: createReport
+      tags: [moderation]
+      summary: Report a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportCreated"
+
+  /blocks:
+    get:
+      operationId: getBlockList
+      tags: [blocks]
+      summary: List users blocked by the current user
+      responses:
+        "200":
+          description: Block list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BlockEntry"
+
+  /blocks/{blockedId}:
+    delete:
+      operationId: unblockUser
+      tags: [blocks]
+      summary: Unblock a user
+      parameters:
+        - name: blockedId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User unblocked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL for direct GCS upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Presigned URL ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
 components:
   parameters:
     AuthorizationSessionHeader:
@@ -347,6 +547,13 @@ components:
           type: string
       required:
         - status
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
 
     AuthUser:
       type: object
@@ -526,18 +733,22 @@ components:
           type: string
         replyToId:
           type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        readAt:
+          type: ["string", "null"]
         createdAt:
           type: string
 
     MessageInput:
       type: object
-      required: [content]
       properties:
         content:
           type: string
-          minLength: 1
           maxLength: 2000
         replyToId:
+          type: ["string", "null"]
+        imageUrl:
           type: ["string", "null"]
 
     ArchivedMatch:
@@ -562,3 +773,90 @@ components:
           type: string
         firstMessage:
           type: ["string", "null"]
+        conversationDuration:
+          type: ["integer", "null"]
+          description: Duration of conversation in minutes (time between first and last message)
+
+    ReactionSummary:
+      type: object
+      required: [emoji, count, byMe]
+      properties:
+        emoji:
+          type: string
+        count:
+          type: integer
+        byMe:
+          type: boolean
+
+    ReactionInput:
+      type: object
+      required: [emoji]
+      properties:
+        emoji:
+          type: string
+
+    ReactionAdded:
+      type: object
+      required: [messageId, emoji, userId]
+      properties:
+        messageId:
+          type: string
+        emoji:
+          type: string
+        userId:
+          type: string
+
+    ReportInput:
+      type: object
+      required: [reportedUserId, reason]
+      properties:
+        reportedUserId:
+          type: string
+        matchId:
+          type: ["string", "null"]
+        reason:
+          type: string
+          enum: [spam, harassment, inappropriate, other]
+        details:
+          type: ["string", "null"]
+          maxLength: 1000
+
+    ReportCreated:
+      type: object
+      required: [id, success]
+      properties:
+        id:
+          type: string
+        success:
+          type: boolean
+
+    BlockEntry:
+      type: object
+      required: [id, blockedId, createdAt]
+      properties:
+        id:
+          type: string
+        blockedId:
+          type: string
+        createdAt:
+          type: string
+
+    RequestUploadUrlBody:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+
+    RequestUploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string

@@ -3,15 +3,14 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface MessageInput {
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  content: string;
+  /** @maxLength 2000 */
+  content?: string;
   /** @nullable */
   replyToId?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
 }

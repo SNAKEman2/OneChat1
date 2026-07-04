@@ -3,10 +3,14 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
+}
+
+export interface SuccessResponse {
+  success: boolean;
 }
 
 export interface AuthUser {
@@ -143,17 +147,20 @@ export interface Message {
   content: string;
   /** @nullable */
   replyToId?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @nullable */
+  readAt?: string | null;
   createdAt: string;
 }
 
 export interface MessageInput {
-  /**
-     * @minLength 1
-     * @maxLength 2000
-     */
-  content: string;
+  /** @maxLength 2000 */
+  content?: string;
   /** @nullable */
   replyToId?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
 }
 
 export interface ArchivedMatch {
@@ -170,6 +177,71 @@ export interface ArchivedMatch {
   status: string;
   /** @nullable */
   firstMessage?: string | null;
+  /**
+     * Duration of conversation in minutes (time between first and last message)
+     * @nullable
+     */
+  conversationDuration?: number | null;
+}
+
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  byMe: boolean;
+}
+
+export interface ReactionInput {
+  emoji: string;
+}
+
+export interface ReactionAdded {
+  messageId: string;
+  emoji: string;
+  userId: string;
+}
+
+export type ReportInputReason = typeof ReportInputReason[keyof typeof ReportInputReason];
+
+
+export const ReportInputReason = {
+  spam: 'spam',
+  harassment: 'harassment',
+  inappropriate: 'inappropriate',
+  other: 'other',
+} as const;
+
+export interface ReportInput {
+  reportedUserId: string;
+  /** @nullable */
+  matchId?: string | null;
+  reason: ReportInputReason;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  details?: string | null;
+}
+
+export interface ReportCreated {
+  id: string;
+  success: boolean;
+}
+
+export interface BlockEntry {
+  id: string;
+  blockedId: string;
+  createdAt: string;
+}
+
+export interface RequestUploadUrlBody {
+  name: string;
+  size: number;
+  contentType: string;
+}
+
+export interface RequestUploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
 }
 
 /**
@@ -187,15 +259,30 @@ state?: string;
 iss?: string;
 };
 
+export type GetMatchArchiveParams = {
+/**
+ * Search by partner name, icebreaker, or message content
+ */
+q?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 50
+ */
+limit?: number;
+};
+
 export type GetMatchMessagesParams = {
 /**
- * Return messages created before this message ID (cursor for pagination)
+ * Return messages created before this message ID
  */
 before?: string;
 /**
- * Maximum number of messages to return (1-100, default 100)
  * @minimum 1
- * @maximum 100
+ * @maximum 50
  */
 limit?: number;
 };

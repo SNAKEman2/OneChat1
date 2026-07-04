@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export interface Message {
@@ -13,5 +13,9 @@ export interface Message {
   content: string;
   /** @nullable */
   replyToId?: string | null;
+  /** @nullable */
+  imageUrl?: string | null;
+  /** @nullable */
+  readAt?: string | null;
   createdAt: string;
 }

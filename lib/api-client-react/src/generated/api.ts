@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import {
   useMutation,
@@ -23,8 +23,10 @@ import type {
   ArchivedMatch,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
+  BlockEntry,
   EndMatchInput,
   ErrorEnvelope,
+  GetMatchArchiveParams,
   GetMatchMessagesParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
@@ -36,7 +38,15 @@ import type {
   MobileTokenExchangeSuccess,
   Profile,
   ProfileSetup,
-  ProfileUpdate
+  ProfileUpdate,
+  ReactionAdded,
+  ReactionInput,
+  ReactionSummary,
+  ReportCreated,
+  ReportInput,
+  RequestUploadUrlBody,
+  RequestUploadUrlResponse,
+  SuccessResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -60,7 +70,6 @@ export const getHealthCheckUrl = () => {
 }
 
 /**
- * Returns server health status
  * @summary Health check
  */
 export const healthCheck = async ( options?: RequestInit): Promise<HealthStatus> => {
@@ -961,20 +970,27 @@ export const useEndMatch = <TError = ErrorType<unknown>,
       return useMutation(getEndMatchMutationOptions(options));
     }
 
-export const getGetMatchArchiveUrl = () => {
+export const getGetMatchArchiveUrl = (params?: GetMatchArchiveParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/matches/archive`
+  return stringifiedParams.length > 0 ? `/api/matches/archive?${stringifiedParams}` : `/api/matches/archive`
 }
 
 /**
- * @summary Get all past matches for the archive/gallery
+ * @summary Get past matches with search and pagination
  */
-export const getMatchArchive = async ( options?: RequestInit): Promise<ArchivedMatch[]> => {
+export const getMatchArchive = async (params?: GetMatchArchiveParams, options?: RequestInit): Promise<ArchivedMatch[]> => {
 
-  return customFetch<ArchivedMatch[]>(getGetMatchArchiveUrl(),
+  return customFetch<ArchivedMatch[]>(getGetMatchArchiveUrl(params),
   {
     ...options,
     method: 'GET'
@@ -987,23 +1003,23 @@ export const getMatchArchive = async ( options?: RequestInit): Promise<ArchivedM
 
 
 
-export const getGetMatchArchiveQueryKey = () => {
+export const getGetMatchArchiveQueryKey = (params?: GetMatchArchiveParams,) => {
     return [
-    `/api/matches/archive`
+    `/api/matches/archive`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getGetMatchArchiveQueryOptions = <TData = Awaited<ReturnType<typeof getMatchArchive>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMatchArchiveQueryOptions = <TData = Awaited<ReturnType<typeof getMatchArchive>>, TError = ErrorType<unknown>>(params?: GetMatchArchiveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetMatchArchiveQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetMatchArchiveQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchArchive>>> = ({ signal }) => getMatchArchive({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMatchArchive>>> = ({ signal }) => getMatchArchive(params, { signal, ...requestOptions });
 
 
 
@@ -1017,15 +1033,15 @@ export type GetMatchArchiveQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get all past matches for the archive/gallery
+ * @summary Get past matches with search and pagination
  */
 
 export function useGetMatchArchive<TData = Awaited<ReturnType<typeof getMatchArchive>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetMatchArchiveParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMatchArchive>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetMatchArchiveQueryOptions(options)
+  const queryOptions = getGetMatchArchiveQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -1055,7 +1071,7 @@ export const getGetMatchMessagesUrl = (matchId: string,
 }
 
 /**
- * @summary Get messages for a match (supports cursor pagination)
+ * @summary Get messages for a match (cursor pagination)
  */
 export const getMatchMessages = async (matchId: string,
     params?: GetMatchMessagesParams, options?: RequestInit): Promise<Message[]> => {
@@ -1105,7 +1121,7 @@ export type GetMatchMessagesQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get messages for a match (supports cursor pagination)
+ * @summary Get messages for a match (cursor pagination)
  */
 
 export function useGetMatchMessages<TData = Awaited<ReturnType<typeof getMatchMessages>>, TError = ErrorType<unknown>>(
@@ -1197,5 +1213,594 @@ export const useSendMessage = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSendMessageMutationOptions(options));
+    }
+
+export const getMarkMessagesReadUrl = (matchId: string,) => {
+
+
+
+
+  return `/api/matches/${matchId}/messages/read`
+}
+
+/**
+ * @summary Mark messages as read (triggers read receipt to partner)
+ */
+export const markMessagesRead = async (matchId: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getMarkMessagesReadUrl(matchId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getMarkMessagesReadMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markMessagesRead>>, TError,{matchId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markMessagesRead>>, TError,{matchId: string}, TContext> => {
+
+const mutationKey = ['markMessagesRead'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markMessagesRead>>, {matchId: string}> = (props) => {
+          const {matchId} = props ?? {};
+
+          return  markMessagesRead(matchId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkMessagesReadMutationResult = NonNullable<Awaited<ReturnType<typeof markMessagesRead>>>
+
+    export type MarkMessagesReadMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark messages as read (triggers read receipt to partner)
+ */
+export const useMarkMessagesRead = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markMessagesRead>>, TError,{matchId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markMessagesRead>>,
+        TError,
+        {matchId: string},
+        TContext
+      > => {
+      return useMutation(getMarkMessagesReadMutationOptions(options));
+    }
+
+export const getGetMessageReactionsUrl = (matchId: string,
+    messageId: string,) => {
+
+
+
+
+  return `/api/matches/${matchId}/messages/${messageId}/reactions`
+}
+
+/**
+ * @summary Get reactions for a message
+ */
+export const getMessageReactions = async (matchId: string,
+    messageId: string, options?: RequestInit): Promise<ReactionSummary[]> => {
+
+  return customFetch<ReactionSummary[]>(getGetMessageReactionsUrl(matchId,messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMessageReactionsQueryKey = (matchId: string,
+    messageId: string,) => {
+    return [
+    `/api/matches/${matchId}/messages/${messageId}/reactions`
+    ] as const;
+    }
+
+
+export const getGetMessageReactionsQueryOptions = <TData = Awaited<ReturnType<typeof getMessageReactions>>, TError = ErrorType<unknown>>(matchId: string,
+    messageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageReactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMessageReactionsQueryKey(matchId,messageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessageReactions>>> = ({ signal }) => getMessageReactions(matchId,messageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(matchId && messageId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessageReactions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMessageReactionsQueryResult = NonNullable<Awaited<ReturnType<typeof getMessageReactions>>>
+export type GetMessageReactionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get reactions for a message
+ */
+
+export function useGetMessageReactions<TData = Awaited<ReturnType<typeof getMessageReactions>>, TError = ErrorType<unknown>>(
+ matchId: string,
+    messageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessageReactions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMessageReactionsQueryOptions(matchId,messageId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAddReactionUrl = (matchId: string,
+    messageId: string,) => {
+
+
+
+
+  return `/api/matches/${matchId}/messages/${messageId}/reactions`
+}
+
+/**
+ * @summary Add a reaction to a message
+ */
+export const addReaction = async (matchId: string,
+    messageId: string,
+    reactionInput: ReactionInput, options?: RequestInit): Promise<ReactionAdded> => {
+
+  return customFetch<ReactionAdded>(getAddReactionUrl(matchId,messageId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reactionInput,)
+  }
+);}
+
+
+
+
+export const getAddReactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addReaction>>, TError,{matchId: string;messageId: string;data: BodyType<ReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addReaction>>, TError,{matchId: string;messageId: string;data: BodyType<ReactionInput>}, TContext> => {
+
+const mutationKey = ['addReaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addReaction>>, {matchId: string;messageId: string;data: BodyType<ReactionInput>}> = (props) => {
+          const {matchId,messageId,data} = props ?? {};
+
+          return  addReaction(matchId,messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddReactionMutationResult = NonNullable<Awaited<ReturnType<typeof addReaction>>>
+    export type AddReactionMutationBody = BodyType<ReactionInput>
+    export type AddReactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a reaction to a message
+ */
+export const useAddReaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addReaction>>, TError,{matchId: string;messageId: string;data: BodyType<ReactionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addReaction>>,
+        TError,
+        {matchId: string;messageId: string;data: BodyType<ReactionInput>},
+        TContext
+      > => {
+      return useMutation(getAddReactionMutationOptions(options));
+    }
+
+export const getRemoveReactionUrl = (matchId: string,
+    messageId: string,
+    emoji: string,) => {
+
+
+
+
+  return `/api/matches/${matchId}/messages/${messageId}/reactions/${emoji}`
+}
+
+/**
+ * @summary Remove a reaction from a message
+ */
+export const removeReaction = async (matchId: string,
+    messageId: string,
+    emoji: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRemoveReactionUrl(matchId,messageId,emoji),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getRemoveReactionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeReaction>>, TError,{matchId: string;messageId: string;emoji: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeReaction>>, TError,{matchId: string;messageId: string;emoji: string}, TContext> => {
+
+const mutationKey = ['removeReaction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeReaction>>, {matchId: string;messageId: string;emoji: string}> = (props) => {
+          const {matchId,messageId,emoji} = props ?? {};
+
+          return  removeReaction(matchId,messageId,emoji,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveReactionMutationResult = NonNullable<Awaited<ReturnType<typeof removeReaction>>>
+
+    export type RemoveReactionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove a reaction from a message
+ */
+export const useRemoveReaction = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeReaction>>, TError,{matchId: string;messageId: string;emoji: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeReaction>>,
+        TError,
+        {matchId: string;messageId: string;emoji: string},
+        TContext
+      > => {
+      return useMutation(getRemoveReactionMutationOptions(options));
+    }
+
+export const getCreateReportUrl = () => {
+
+
+
+
+  return `/api/reports`
+}
+
+/**
+ * @summary Report a user
+ */
+export const createReport = async (reportInput: ReportInput, options?: RequestInit): Promise<ReportCreated> => {
+
+  return customFetch<ReportCreated>(getCreateReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportInput,)
+  }
+);}
+
+
+
+
+export const getCreateReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReport>>, TError,{data: BodyType<ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReport>>, TError,{data: BodyType<ReportInput>}, TContext> => {
+
+const mutationKey = ['createReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReport>>, {data: BodyType<ReportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReportMutationResult = NonNullable<Awaited<ReturnType<typeof createReport>>>
+    export type CreateReportMutationBody = BodyType<ReportInput>
+    export type CreateReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Report a user
+ */
+export const useCreateReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReport>>, TError,{data: BodyType<ReportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReport>>,
+        TError,
+        {data: BodyType<ReportInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReportMutationOptions(options));
+    }
+
+export const getGetBlockListUrl = () => {
+
+
+
+
+  return `/api/blocks`
+}
+
+/**
+ * @summary List users blocked by the current user
+ */
+export const getBlockList = async ( options?: RequestInit): Promise<BlockEntry[]> => {
+
+  return customFetch<BlockEntry[]>(getGetBlockListUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBlockListQueryKey = () => {
+    return [
+    `/api/blocks`
+    ] as const;
+    }
+
+
+export const getGetBlockListQueryOptions = <TData = Awaited<ReturnType<typeof getBlockList>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBlockList>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBlockListQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBlockList>>> = ({ signal }) => getBlockList({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBlockList>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBlockListQueryResult = NonNullable<Awaited<ReturnType<typeof getBlockList>>>
+export type GetBlockListQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List users blocked by the current user
+ */
+
+export function useGetBlockList<TData = Awaited<ReturnType<typeof getBlockList>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBlockList>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBlockListQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUnblockUserUrl = (blockedId: string,) => {
+
+
+
+
+  return `/api/blocks/${blockedId}`
+}
+
+/**
+ * @summary Unblock a user
+ */
+export const unblockUser = async (blockedId: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getUnblockUserUrl(blockedId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getUnblockUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unblockUser>>, TError,{blockedId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unblockUser>>, TError,{blockedId: string}, TContext> => {
+
+const mutationKey = ['unblockUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unblockUser>>, {blockedId: string}> = (props) => {
+          const {blockedId} = props ?? {};
+
+          return  unblockUser(blockedId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnblockUserMutationResult = NonNullable<Awaited<ReturnType<typeof unblockUser>>>
+
+    export type UnblockUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Unblock a user
+ */
+export const useUnblockUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unblockUser>>, TError,{blockedId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unblockUser>>,
+        TError,
+        {blockedId: string},
+        TContext
+      > => {
+      return useMutation(getUnblockUserMutationOptions(options));
+    }
+
+export const getRequestUploadUrlUrl = () => {
+
+
+
+
+  return `/api/storage/uploads/request-url`
+}
+
+/**
+ * @summary Request a presigned upload URL for direct GCS upload
+ */
+export const requestUploadUrl = async (requestUploadUrlBody: RequestUploadUrlBody, options?: RequestInit): Promise<RequestUploadUrlResponse> => {
+
+  return customFetch<RequestUploadUrlResponse>(getRequestUploadUrlUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      requestUploadUrlBody,)
+  }
+);}
+
+
+
+
+export const getRequestUploadUrlMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<RequestUploadUrlBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<RequestUploadUrlBody>}, TContext> => {
+
+const mutationKey = ['requestUploadUrl'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestUploadUrl>>, {data: BodyType<RequestUploadUrlBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  requestUploadUrl(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof requestUploadUrl>>>
+    export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>
+    export type RequestUploadUrlMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Request a presigned upload URL for direct GCS upload
+ */
+export const useRequestUploadUrl = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestUploadUrl>>, TError,{data: BodyType<RequestUploadUrlBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestUploadUrl>>,
+        TError,
+        {data: BodyType<RequestUploadUrlBody>},
+        TContext
+      > => {
+      return useMutation(getRequestUploadUrlMutationOptions(options));
     }
 

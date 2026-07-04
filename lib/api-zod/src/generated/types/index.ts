@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * OneChat API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
 export * from './archivedMatch';
@@ -11,8 +11,10 @@ export * from './authorizationSessionHeaderParameter';
 export * from './authUser';
 export * from './authUserEnvelope';
 export * from './beginBrowserLoginParams';
+export * from './blockEntry';
 export * from './endMatchInput';
 export * from './errorEnvelope';
+export * from './getMatchArchiveParams';
 export * from './getMatchMessagesParams';
 export * from './handleBrowserLoginCallbackParams';
 export * from './healthStatus';
@@ -27,3 +29,12 @@ export * from './mobileTokenExchangeSuccess';
 export * from './profile';
 export * from './profileSetup';
 export * from './profileUpdate';
+export * from './reactionAdded';
+export * from './reactionInput';
+export * from './reactionSummary';
+export * from './reportCreated';
+export * from './reportInput';
+export * from './reportInputReason';
+export * from './requestUploadUrlBody';
+export * from './requestUploadUrlResponse';
+export * from './successResponse';
