@@ -348,20 +348,81 @@ paths:
         "403":
           description: Match is not active or expired
 
-  /matches/{matchId}/messages/read:
-    post:
-      operationId: markMessagesRead
+  /matches/{matchId}/messages/{messageId}:
+    patch:
+      operationId: editMessage
       tags: [messages]
-      summary: Mark messages as read (triggers read receipt to partner)
+      summary: Edit a sent message (text only, own messages only)
       parameters:
         - name: matchId
           in: path
           required: true
           schema:
             type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageEditInput"
       responses:
         "200":
-          description: Read event broadcast
+          description: Message edited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "403":
+          description: Not your message or message is deleted
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Unsend a message for both participants
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "403":
+          description: Not your message
+
+  /matches/{matchId}/messages/{messageId}/viewed:
+    post:
+      operationId: markMediaViewed
+      tags: [messages]
+      summary: Mark a view-once media message as viewed
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Marked viewed
           content:
             application/json:
               schema:
@@ -625,7 +686,7 @@ components:
 
     Profile:
       type: object
-      required: [id, userId, displayName, avatarUrl, icebreaker, lastActive, createdAt]
+      required: [id, userId, displayName, avatarUrl, icebreaker, lastActive, createdAt, isPremium]
       properties:
         id:
           type: string
@@ -643,6 +704,18 @@ components:
           type: string
         createdAt:
           type: string
+        isPremium:
+          type: boolean
+        premiumGrantedAt:
+          type: ["string", "null"]
+        nameColor:
+          type: ["string", "null"]
+        fontFamily:
+          type: ["string", "null"]
+        fontSize:
+          type: ["string", "null"]
+        wallpaper:
+          type: ["string", "null"]
 
     ProfileSetup:
       type: object
@@ -675,6 +748,14 @@ components:
           minLength: 1
           maxLength: 200
         aura:
+          type: ["string", "null"]
+        nameColor:
+          type: ["string", "null"]
+        fontFamily:
+          type: ["string", "null"]
+        fontSize:
+          type: ["string", "null"]
+        wallpaper:
           type: ["string", "null"]
 
     MatchPartner:
@@ -721,7 +802,7 @@ components:
 
     Message:
       type: object
-      required: [id, matchId, senderId, content, createdAt]
+      required: [id, matchId, senderId, content, isDeleted, isViewOnce, createdAt]
       properties:
         id:
           type: string
@@ -735,7 +816,13 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
-        readAt:
+        isDeleted:
+          type: boolean
+        isViewOnce:
+          type: boolean
+        viewedAt:
+          type: ["string", "null"]
+        editedAt:
           type: ["string", "null"]
         createdAt:
           type: string
@@ -750,6 +837,17 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
+        isViewOnce:
+          type: boolean
+
+    MessageEditInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
 
     ArchivedMatch:
       type: object

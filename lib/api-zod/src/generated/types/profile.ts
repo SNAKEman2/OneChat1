@@ -17,4 +17,15 @@ export interface Profile {
   aura?: string | null;
   lastActive: string;
   createdAt: string;
+  isPremium: boolean;
+  /** @nullable */
+  premiumGrantedAt?: string | null;
+  /** @nullable */
+  nameColor?: string | null;
+  /** @nullable */
+  fontFamily?: string | null;
+  /** @nullable */
+  fontSize?: string | null;
+  /** @nullable */
+  wallpaper?: string | null;
 }

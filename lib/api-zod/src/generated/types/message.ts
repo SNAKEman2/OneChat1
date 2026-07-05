@@ -15,7 +15,11 @@ export interface Message {
   replyToId?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  isDeleted: boolean;
+  isViewOnce: boolean;
   /** @nullable */
-  readAt?: string | null;
+  viewedAt?: string | null;
+  /** @nullable */
+  editedAt?: string | null;
   createdAt: string;
 }

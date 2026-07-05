@@ -5,14 +5,6 @@ export interface IgnitionResult {
   firstSpeakerId: string | null;
 }
 
-export interface Reaction {
-  emoji: string;
-  count: number;
-  byMe: boolean;
-}
-
-export type ReactionsMap = Record<string, Reaction[]>;
-
 // E2 — exponential backoff constants
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
@@ -23,15 +15,12 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [onlineStatus, setOnlineStatus] = useState<Record<string, boolean>>({});
   const [ignitionResult, setIgnitionResult] = useState<IgnitionResult | null>(null);
-  const [reactions, setReactions] = useState<ReactionsMap>({});
   const [roomExpired, setRoomExpired] = useState(false);
-  const [partnerLastRead, setPartnerLastRead] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const reconnectDelayRef = useRef(RECONNECT_BASE_MS);
   const reconnectTimerRef = useRef<number | null>(null);
-  // E2 — disposed flag prevents reconnect after intentional unmount
   const disposedRef = useRef(false);
 
   useEffect(() => {
@@ -47,7 +36,7 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
     wsRef.current = ws;
 
     ws.onopen = () => {
-      reconnectDelayRef.current = RECONNECT_BASE_MS; // reset backoff on success
+      reconnectDelayRef.current = RECONNECT_BASE_MS;
     };
 
     ws.onmessage = (event) => {
@@ -61,6 +50,33 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
               return [...prev, data.data];
             });
             setPartnerTyping(false);
+            break;
+
+          // Edit: replace message content in-place
+          case "message_edited":
+            setMessages((prev) =>
+              prev.map((m) => (m.id === data.data.id ? { ...m, ...data.data } : m))
+            );
+            break;
+
+          // Delete (unsend): mark as deleted
+          case "message_deleted":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === data.data.id
+                  ? { ...m, isDeleted: true, content: "", imageUrl: null }
+                  : m
+              )
+            );
+            break;
+
+          // View-once media viewed by partner
+          case "media_viewed":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === data.data.id ? { ...m, viewedAt: data.data.viewedAt } : m
+              )
+            );
             break;
 
           case "typing":
@@ -87,58 +103,9 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
             setIgnitionResult(data.data as IgnitionResult);
             break;
 
-          // A2 — reaction events
-          case "reaction_add":
-            setReactions((prev) => {
-              const msgId = data.data.messageId as string;
-              const emoji = data.data.emoji as string;
-              const reactorId = data.data.userId as string;
-              const existing = [...(prev[msgId] ?? [])];
-              const idx = existing.findIndex((r) => r.emoji === emoji);
-              if (idx >= 0) {
-                existing[idx] = {
-                  ...existing[idx],
-                  count: existing[idx].count + 1,
-                  byMe: existing[idx].byMe || reactorId === userId,
-                };
-              } else {
-                existing.push({ emoji, count: 1, byMe: reactorId === userId });
-              }
-              return { ...prev, [msgId]: existing };
-            });
-            break;
-
-          case "reaction_remove":
-            setReactions((prev) => {
-              const msgId = data.data.messageId as string;
-              const emoji = data.data.emoji as string;
-              const reactorId = data.data.userId as string;
-              const existing = (prev[msgId] ?? [])
-                .map((r) =>
-                  r.emoji === emoji
-                    ? { ...r, count: r.count - 1, byMe: r.byMe && reactorId !== userId }
-                    : r
-                )
-                .filter((r) => r.count > 0);
-              return { ...prev, [msgId]: existing };
-            });
-            break;
-
-          // E3 — room expired event
           case "room_expired":
-            setRoomExpired(true);
-            break;
-
-          // E3 — partner ended match
           case "match_ended":
             setRoomExpired(true);
-            break;
-
-          // A3 — read receipts
-          case "read":
-            if (data.data.userId !== userId) {
-              setPartnerLastRead(data.data.lastReadAt as string);
-            }
             break;
         }
       } catch (e) {
@@ -147,16 +114,14 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
     };
 
     ws.onclose = () => {
-      if (disposedRef.current) return; // intentional close — don't reconnect
-
-      // E2 — exponential backoff reconnect
+      if (disposedRef.current) return;
       const delay = reconnectDelayRef.current;
       reconnectDelayRef.current = Math.min(delay * RECONNECT_FACTOR, RECONNECT_MAX_MS);
       reconnectTimerRef.current = window.setTimeout(connect, delay);
     };
 
     ws.onerror = () => {
-      // onclose will fire next and handle reconnect
+      // onclose fires next
     };
   }, [matchId, userId]);
 
@@ -188,13 +153,6 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
     }
   };
 
-  // A3 — notify partner we've read messages
-  const sendRead = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "read" }));
-    }
-  };
-
   return {
     messages,
     partnerTyping,
@@ -202,10 +160,6 @@ export function useWebsocket(matchId: string | null, initialMessages: Message[],
     sendTyping,
     ignitionResult,
     tapIgnition,
-    reactions,
-    setReactions,
     roomExpired,
-    partnerLastRead,
-    sendRead,
   };
 }

@@ -13,4 +13,5 @@ export interface MessageInput {
   replyToId?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  isViewOnce?: boolean;
 }

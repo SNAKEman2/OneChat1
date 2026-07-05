@@ -309,13 +309,20 @@ router.get("/matches/archive", async (req, res) => {
   try {
     // C3: Consolidated query — join profiles and aggregate messages to avoid N+1
     // We fetch a page of matches, then resolve partner profiles + message stats in two bulk queries
+    // Include past dates always; include today only if the match has ended
     const pastMatches = await db
       .select()
       .from(matchesTable)
       .where(
         and(
           or(eq(matchesTable.user1Id, userId), eq(matchesTable.user2Id, userId)),
-          sql`${matchesTable.matchDate} < ${today}`
+          or(
+            sql`${matchesTable.matchDate} < ${today}`,
+            and(
+              sql`${matchesTable.matchDate} = ${today}`,
+              sql`${matchesTable.status} != 'active'`
+            )
+          )
         )
       )
       .orderBy(desc(matchesTable.matchDate))

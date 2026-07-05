@@ -106,7 +106,13 @@ export const GetMyProfileResponse = zod.object({
   "icebreaker": zod.string(),
   "aura": zod.string().nullish(),
   "lastActive": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "isPremium": zod.boolean(),
+  "premiumGrantedAt": zod.string().nullish(),
+  "nameColor": zod.string().nullish(),
+  "fontFamily": zod.string().nullish(),
+  "fontSize": zod.string().nullish(),
+  "wallpaper": zod.string().nullish()
 })
 
 
@@ -123,7 +129,11 @@ export const UpdateMyProfileBody = zod.object({
   "displayName": zod.string().min(1).max(updateMyProfileBodyDisplayNameMax).optional(),
   "avatarUrl": zod.string().nullish(),
   "icebreaker": zod.string().min(1).max(updateMyProfileBodyIcebreakerMax).optional(),
-  "aura": zod.string().nullish()
+  "aura": zod.string().nullish(),
+  "nameColor": zod.string().nullish(),
+  "fontFamily": zod.string().nullish(),
+  "fontSize": zod.string().nullish(),
+  "wallpaper": zod.string().nullish()
 })
 
 export const UpdateMyProfileResponse = zod.object({
@@ -134,7 +144,13 @@ export const UpdateMyProfileResponse = zod.object({
   "icebreaker": zod.string(),
   "aura": zod.string().nullish(),
   "lastActive": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "isPremium": zod.boolean(),
+  "premiumGrantedAt": zod.string().nullish(),
+  "nameColor": zod.string().nullish(),
+  "fontFamily": zod.string().nullish(),
+  "fontSize": zod.string().nullish(),
+  "wallpaper": zod.string().nullish()
 })
 
 
@@ -257,7 +273,10 @@ export const GetMatchMessagesResponseItem = zod.object({
   "content": zod.string(),
   "replyToId": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
-  "readAt": zod.string().nullish(),
+  "isDeleted": zod.boolean(),
+  "isViewOnce": zod.boolean(),
+  "viewedAt": zod.string().nullish(),
+  "editedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const GetMatchMessagesResponse = zod.array(GetMatchMessagesResponseItem)
@@ -277,18 +296,74 @@ export const sendMessageBodyContentMax = 2000;
 export const SendMessageBody = zod.object({
   "content": zod.string().max(sendMessageBodyContentMax).optional(),
   "replyToId": zod.string().nullish(),
-  "imageUrl": zod.string().nullish()
+  "imageUrl": zod.string().nullish(),
+  "isViewOnce": zod.boolean().optional()
 })
 
 
 /**
- * @summary Mark messages as read (triggers read receipt to partner)
+ * @summary Edit a sent message (text only, own messages only)
  */
-export const MarkMessagesReadParams = zod.object({
-  "matchId": zod.coerce.string()
+export const EditMessageParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
 })
 
-export const MarkMessagesReadResponse = zod.object({
+export const editMessageBodyContentMax = 2000;
+
+
+
+export const EditMessageBody = zod.object({
+  "content": zod.string().min(1).max(editMessageBodyContentMax)
+})
+
+export const EditMessageResponse = zod.object({
+  "id": zod.string(),
+  "matchId": zod.string(),
+  "senderId": zod.string(),
+  "content": zod.string(),
+  "replyToId": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "isDeleted": zod.boolean(),
+  "isViewOnce": zod.boolean(),
+  "viewedAt": zod.string().nullish(),
+  "editedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Unsend a message for both participants
+ */
+export const DeleteMessageParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
+})
+
+export const DeleteMessageResponse = zod.object({
+  "id": zod.string(),
+  "matchId": zod.string(),
+  "senderId": zod.string(),
+  "content": zod.string(),
+  "replyToId": zod.string().nullish(),
+  "imageUrl": zod.string().nullish(),
+  "isDeleted": zod.boolean(),
+  "isViewOnce": zod.boolean(),
+  "viewedAt": zod.string().nullish(),
+  "editedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Mark a view-once media message as viewed
+ */
+export const MarkMediaViewedParams = zod.object({
+  "matchId": zod.coerce.string(),
+  "messageId": zod.coerce.string()
+})
+
+export const MarkMediaViewedResponse = zod.object({
   "success": zod.boolean()
 })
 

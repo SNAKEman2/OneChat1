@@ -21,4 +21,12 @@ export interface ProfileUpdate {
   icebreaker?: string;
   /** @nullable */
   aura?: string | null;
+  /** @nullable */
+  nameColor?: string | null;
+  /** @nullable */
+  fontFamily?: string | null;
+  /** @nullable */
+  fontSize?: string | null;
+  /** @nullable */
+  wallpaper?: string | null;
 }

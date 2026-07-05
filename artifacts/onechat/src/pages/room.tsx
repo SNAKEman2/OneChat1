@@ -309,46 +309,32 @@ function groupMessages(messages: Message[], myId: string): MsgGroup[] {
   return groups;
 }
 
-/* ─── Reaction bar (A2) ──────────────────────────────────────── */
-const QUICK_EMOJIS = ["❤️", "😂", "😮", "😢", "👍", "🔥"];
-
-function ReactionBar({ messageId, matchId, reactions, onClose }: {
-  messageId: string;
-  matchId: string;
-  reactions: { emoji: string; count: number; byMe: boolean }[];
+/* ─── Edit/Delete context menu ───────────────────────────────── */
+function MsgContextMenu({ onEdit, onDelete, canEdit, align, onClose }: {
+  onEdit?: () => void;
+  onDelete: () => void;
+  canEdit: boolean;
+  align: "start" | "end";
   onClose: () => void;
 }) {
-  const toggle = async (emoji: string) => {
-    const existing = reactions.find((r) => r.emoji === emoji);
-    const method = existing?.byMe ? "DELETE" : "POST";
-    const url = existing?.byMe
-      ? `/api/matches/${matchId}/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`
-      : `/api/matches/${matchId}/messages/${messageId}/reactions`;
-
-    await fetch(url, {
-      method,
-      headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
-      body: method === "POST" ? JSON.stringify({ emoji }) : undefined,
-    });
-    onClose();
-  };
-
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.85, y: 6 }} animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.85, y: 6 }} transition={{ type: "spring", stiffness: 400, damping: 28 }}
-      className="flex items-center gap-1 px-2 py-1.5 rounded-full shadow-lg"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)", zIndex: 20 }}>
-      {QUICK_EMOJIS.map((emoji) => {
-        const r = reactions.find((rx) => rx.emoji === emoji);
-        return (
-          <button key={emoji} onClick={() => toggle(emoji)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-base transition-all active:scale-90"
-            style={{ background: r?.byMe ? "var(--accent)" : "transparent" }}
-            aria-label={`React with ${emoji}`}>
-            {emoji}
-          </button>
-        );
-      })}
+    <motion.div initial={{ opacity: 0, scale: 0.9, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 4 }} transition={{ type: "spring", stiffness: 450, damping: 30 }}
+      className={`flex flex-col gap-0.5 py-1 rounded-xl shadow-xl z-30 ${align === "end" ? "items-end" : "items-start"}`}
+      style={{ background: "var(--surface)", border: "1px solid var(--border)", minWidth: 128 }}
+      onClick={(e) => e.stopPropagation()}>
+      {canEdit && (
+        <button onClick={() => { onEdit?.(); onClose(); }}
+          className="w-full px-4 py-2.5 text-left text-sm font-mono transition-colors hover:bg-[rgba(255,255,255,0.05)] active:opacity-70"
+          style={{ color: "var(--foreground)" }}>
+          Edit
+        </button>
+      )}
+      <button onClick={() => { onDelete(); onClose(); }}
+        className="w-full px-4 py-2.5 text-left text-sm font-mono transition-colors hover:bg-[rgba(255,255,255,0.05)] active:opacity-70"
+        style={{ color: "#f38ba8" }}>
+        Unsend
+      </button>
     </motion.div>
   );
 }
@@ -379,8 +365,11 @@ function ActiveRoom({ matchState, userId, myProfile }: {
   const msgRefs = useRef<Map<string, HTMLElement>>(new Map());
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
 
-  // A2 — reaction picker
-  const [pickerOpenForMsgId, setPickerOpenForMsgId] = useState<string | null>(null);
+  // Edit / delete context menu (own messages)
+  const [contextMenuMsgId, setContextMenuMsgId] = useState<string | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
   const longPressTimerRef = useRef<number | null>(null);
 
   // B1/B3 — image viewer
@@ -459,11 +448,7 @@ function ActiveRoom({ matchState, userId, myProfile }: {
     sendTyping,
     ignitionResult,
     tapIgnition,
-    reactions,
-    setReactions,
     roomExpired,
-    partnerLastRead,
-    sendRead,
   } = useWebsocket(matchState.matchId, initialMessages ?? [], userId);
 
   // E3 — room_expired WS event locks the room immediately
@@ -513,12 +498,10 @@ function ActiveRoom({ matchState, userId, myProfile }: {
     }
   }, [messages, partnerTyping, prefersReducedMotion]);
 
-  // A3 — send read when messages change / window focused
+  // Focus edit textarea when entering edit mode
   useEffect(() => {
-    if (messages.length > 0 && document.visibilityState === "visible") {
-      sendRead();
-    }
-  }, [messages.length]);
+    if (editingMsgId) setTimeout(() => editInputRef.current?.focus(), 60);
+  }, [editingMsgId]);
 
   // E1 — intersection observer for top sentinel (load older messages)
   useEffect(() => {
@@ -621,23 +604,41 @@ function ActiveRoom({ matchState, userId, myProfile }: {
     setTimeout(() => setHighlightedMsgId(null), 1200);
   }, [prefersReducedMotion]);
 
-  // A2 — long press to open reaction picker
-  const handleLongPressStart = (msgId: string) => {
-    longPressTimerRef.current = window.setTimeout(() => setPickerOpenForMsgId(msgId), 450);
+  // Long press → open edit/delete menu for own messages only
+  const handleLongPressStart = (msgId: string, isOwn: boolean) => {
+    if (!isOwn || isLocked) return;
+    longPressTimerRef.current = window.setTimeout(() => setContextMenuMsgId(msgId), 450);
   };
   const handleLongPressEnd = () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
   };
 
+  // Edit handlers
+  const startEdit = (msg: Message) => {
+    setEditingMsgId(msg.id);
+    setEditContent(msg.content);
+    setContextMenuMsgId(null);
+  };
+  const cancelEdit = () => { setEditingMsgId(null); setEditContent(""); };
+  const submitEdit = async (msgId: string) => {
+    const text = editContent.trim();
+    if (!text) return;
+    cancelEdit();
+    await fetch(`/api/matches/${matchState.matchId}/messages/${msgId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text }),
+    });
+  };
+
+  // Delete (unsend) handler
+  const unsendMessage = async (msgId: string) => {
+    await fetch(`/api/matches/${matchState.matchId}/messages/${msgId}`, { method: "DELETE" });
+  };
+
   const showInactiveNotice =
     !!partner?.lastActive && !onlineStatus[partnerUserId] &&
     (Date.now() - new Date(partner.lastActive).getTime()) / 3600000 > 3;
-
-  // A3 — determine last sent message id for read receipt
-  const lastSentMsgId = useMemo(() => {
-    const sent = messages.filter((m) => m.senderId === userId);
-    return sent[sent.length - 1]?.id ?? null;
-  }, [messages, userId]);
 
   if (!ignitionMode) {
     return (
@@ -709,7 +710,7 @@ function ActiveRoom({ matchState, userId, myProfile }: {
       {/* ── Messages ── */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto hide-scrollbar px-4 py-4"
         onScroll={handleScrollPause}
-        onClick={() => { if (pickerOpenForMsgId) { setPickerOpenForMsgId(null); return; } if (inputOpen) showIcebreaker(); else if (!isLocked) openInput(); }}
+        onClick={() => { if (contextMenuMsgId) { setContextMenuMsgId(null); return; } if (inputOpen) showIcebreaker(); else if (!isLocked) openInput(); }}
         style={{ cursor: isLocked ? "default" : "text" }}
         role="log" aria-label="Messages" aria-live="polite">
 
@@ -786,9 +787,17 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                 {group.msgs.map((msg, mi) => {
                   const quotedMsg = msg.replyToId ? msgMap.get(msg.replyToId) : null;
                   const quotedSender = quotedMsg?.senderId === userId ? myName : partnerName;
-                  const msgReactions = reactions[msg.id] ?? [];
                   const isHighlighted = highlightedMsgId === msg.id;
-                  const isLastSent = group.isMe && msg.id === lastSentMsgId;
+                  const isEditing = editingMsgId === msg.id;
+                  const isDeleted = (msg as any).isDeleted;
+                  const isViewOnce = (msg as any).isViewOnce;
+                  const viewedAt = (msg as any).viewedAt;
+                  const editedAt = (msg as any).editedAt;
+                  const imageUrl = (msg as any).imageUrl;
+                  // View-once: recipient sees blurred until tapped; once viewed, image is gone
+                  const isRecipient = msg.senderId !== userId;
+                  const viewOnceViewed = isViewOnce && !!viewedAt;
+                  const viewOnceReady = isViewOnce && !viewedAt && isRecipient && imageUrl;
 
                   return (
                     <div key={msg.id}
@@ -797,8 +806,8 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                       style={{ transition: "background 0.3s ease", borderRadius: 8,
                         background: isHighlighted ? "rgba(88,101,242,0.15)" : "transparent" }}>
 
-                      {/* A1 — Reply quote: clickable → jump to original */}
-                      {quotedMsg && (
+                      {/* Reply quote: clickable → jump to original */}
+                      {quotedMsg && !isDeleted && (
                         <button className="reply-quote mb-1 max-w-[90%] text-left"
                           onClick={(e) => { e.stopPropagation(); jumpToMessage(quotedMsg.id); }}
                           style={{ color: "var(--muted)" }}
@@ -812,33 +821,109 @@ function ActiveRoom({ matchState, userId, myProfile }: {
 
                       {/* Message row */}
                       <div className={`flex items-end gap-2 ${group.isMe ? "flex-row-reverse" : "flex-row"}`}
-                        onTouchStart={() => handleLongPressStart(msg.id)}
+                        onTouchStart={() => handleLongPressStart(msg.id, group.isMe)}
                         onTouchEnd={handleLongPressEnd}
                         onTouchCancel={handleLongPressEnd}
-                        onContextMenu={(e) => { e.preventDefault(); setPickerOpenForMsgId(msg.id); }}>
+                        onContextMenu={(e) => { if (group.isMe && !isLocked && !isDeleted) { e.preventDefault(); setContextMenuMsgId(msg.id); } }}>
 
-                        {/* B1 — image message */}
-                        {(msg as any).imageUrl ? (
-                          <button onClick={(e) => { e.stopPropagation(); setViewerSrc((msg as any).imageUrl); }}
-                            className="focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-xl"
-                            aria-label="Open image">
-                            <img src={(msg as any).imageUrl} alt="Shared image"
-                              className="max-w-[220px] max-h-[220px] rounded-xl object-cover"
-                              style={{ border: "1px solid var(--border)" }} />
-                          </button>
+                        {isDeleted ? (
+                          /* Tombstone */
+                          <p className="text-sm font-mono italic" style={{ color: "var(--muted)" }}>
+                            Message unsent
+                          </p>
+                        ) : isEditing ? (
+                          /* Inline edit */
+                          <div className="flex flex-col gap-1.5" style={{ maxWidth: "80%" }}>
+                            <textarea
+                              ref={editInputRef}
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(msg.id); }
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                              rows={2}
+                              className="w-full px-3 py-2 rounded-lg text-sm font-sans outline-none resize-none"
+                              style={{ background: "var(--input-bg)", color: "var(--foreground)",
+                                border: "1px solid var(--accent)", caretColor: "var(--accent)" }}
+                              maxLength={2000} />
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={cancelEdit}
+                                className="text-xs font-mono px-2 py-1 rounded" style={{ color: "var(--muted)" }}>
+                                Cancel
+                              </button>
+                              <button onClick={() => submitEdit(msg.id)}
+                                className="text-xs font-mono px-3 py-1 rounded"
+                                style={{ background: "var(--accent)", color: "white" }}>
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : imageUrl ? (
+                          /* Image message — with view-once handling */
+                          viewOnceViewed ? (
+                            <p className="text-sm font-mono italic" style={{ color: "var(--muted)" }}>
+                              {isRecipient ? "Photo opened" : "Photo was opened"}
+                            </p>
+                          ) : viewOnceReady ? (
+                            /* View-once: blurred tap-to-open */
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await fetch(`/api/matches/${matchState.matchId}/messages/${msg.id}/viewed`, { method: "POST" });
+                                setViewerSrc(imageUrl);
+                              }}
+                              className="relative focus:outline-none rounded-xl overflow-hidden"
+                              aria-label="Tap to view photo (view once)">
+                              <img src={imageUrl} alt="View-once photo"
+                                className="max-w-[220px] max-h-[220px] rounded-xl object-cover"
+                                style={{ filter: "blur(18px)", transform: "scale(1.05)" }} />
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                                <span style={{ fontSize: 22 }}>👁</span>
+                                <span className="text-xs font-mono text-white" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+                                  Tap to open
+                                </span>
+                              </div>
+                            </button>
+                          ) : isViewOnce && !isRecipient && !viewedAt ? (
+                            /* Sender sees their view-once image normally until viewed */
+                            <div className="relative">
+                              <button onClick={(e) => { e.stopPropagation(); setViewerSrc(imageUrl); }}
+                                className="focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-xl"
+                                aria-label="Open image">
+                                <img src={imageUrl} alt="Shared image"
+                                  className="max-w-[220px] max-h-[220px] rounded-xl object-cover"
+                                  style={{ border: "1px solid var(--border)" }} />
+                              </button>
+                              <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono"
+                                style={{ background: "rgba(0,0,0,0.6)", color: "white" }}>
+                                view once
+                              </div>
+                            </div>
+                          ) : (
+                            /* Regular image */
+                            <button onClick={(e) => { e.stopPropagation(); setViewerSrc(imageUrl); }}
+                              className="focus:outline-none focus:ring-2 focus:ring-[var(--accent)] rounded-xl"
+                              aria-label="Open image">
+                              <img src={imageUrl} alt="Shared image"
+                                className="max-w-[220px] max-h-[220px] rounded-xl object-cover"
+                                style={{ border: "1px solid var(--border)" }} />
+                            </button>
+                          )
                         ) : (
+                          /* Text message */
                           <p className={`text-base font-sans leading-snug ${mi === 0 && gi === 0 ? "text-lg" : ""}`}
                             style={{ color: "var(--foreground)", maxWidth: "80%" }}>
                             {msg.content}
                           </p>
                         )}
 
-                        {/* Reply button */}
-                        {!isLocked && (
+                        {/* Reply button (partner messages or own non-deleted) */}
+                        {!isLocked && !isDeleted && (
                           <button className="opacity-0 group-hover/msg:opacity-70 focus:opacity-70 active:opacity-100 flex-shrink-0 transition-opacity"
                             style={{ color: "var(--muted)", padding: "14px 8px", margin: "-14px -8px" }}
                             onClick={(e) => { e.stopPropagation(); startReply(msg, group.isMe ? myName : partnerName); }}
-                            aria-label={`Reply to message from ${group.isMe ? myName : partnerName}`}
+                            aria-label={`Reply to ${group.isMe ? myName : partnerName}`}
                             title="Reply">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                               <path d="M5 3L1 7l4 4M1 7h8a4 4 0 014 4" stroke="currentColor" strokeWidth="1.3"
@@ -848,88 +933,26 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                         )}
                       </div>
 
-                      {/* A2 — Reaction picker (positioned above message) */}
+                      {/* (edited) label */}
+                      {editedAt && !isDeleted && (
+                        <p className="text-[10px] font-mono mt-0.5" style={{ color: "var(--muted)" }}>
+                          (edited)
+                        </p>
+                      )}
+
+                      {/* Edit/Delete context menu */}
                       <AnimatePresence>
-                        {pickerOpenForMsgId === msg.id && (
+                        {contextMenuMsgId === msg.id && group.isMe && !isDeleted && (
                           <div className={`mt-1 ${group.isMe ? "self-end" : "self-start"}`}>
-                            <ReactionBar messageId={msg.id} matchId={matchState.matchId}
-                              reactions={msgReactions}
-                              onClose={() => setPickerOpenForMsgId(null)} />
+                            <MsgContextMenu
+                              canEdit={!imageUrl && !isDeleted}
+                              align="end"
+                              onEdit={() => startEdit(msg)}
+                              onDelete={() => unsendMessage(msg.id)}
+                              onClose={() => setContextMenuMsgId(null)} />
                           </div>
                         )}
                       </AnimatePresence>
-
-                      {/* A2 — Existing reactions display */}
-                      {msgReactions.length > 0 && (
-                        <div className={`flex flex-wrap gap-1 mt-1 ${group.isMe ? "justify-end" : "justify-start"}`}>
-                          {msgReactions.map((r) => (
-                            <button key={r.emoji}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const method = r.byMe ? "DELETE" : "POST";
-                                const url = r.byMe
-                                  ? `/api/matches/${matchState.matchId}/messages/${msg.id}/reactions/${encodeURIComponent(r.emoji)}`
-                                  : `/api/matches/${matchState.matchId}/messages/${msg.id}/reactions`;
-                                // Optimistic: toggle locally, revert on failure
-                                setReactions((prev) => {
-                                  const existing = [...(prev[msg.id] ?? [])];
-                                  const idx = existing.findIndex((rx) => rx.emoji === r.emoji);
-                                  if (idx < 0) return prev;
-                                  const updated = { ...existing[idx] };
-                                  if (r.byMe) {
-                                    updated.count = Math.max(0, updated.count - 1);
-                                    updated.byMe = false;
-                                  } else {
-                                    updated.count = updated.count + 1;
-                                    updated.byMe = true;
-                                  }
-                                  existing[idx] = updated;
-                                  return { ...prev, [msg.id]: existing.filter((rx) => rx.count > 0) };
-                                });
-                                fetch(url, {
-                                  method,
-                                  headers: method === "POST" ? { "Content-Type": "application/json" } : undefined,
-                                  body: method === "POST" ? JSON.stringify({ emoji: r.emoji }) : undefined,
-                                }).catch(() => {
-                                  // Revert on failure by toggling back
-                                  setReactions((prev) => {
-                                    const existing = [...(prev[msg.id] ?? [])];
-                                    const idx = existing.findIndex((rx) => rx.emoji === r.emoji);
-                                    if (idx < 0) return prev;
-                                    const reverted = { ...existing[idx] };
-                                    if (r.byMe) {
-                                      reverted.count = reverted.count + 1;
-                                      reverted.byMe = true;
-                                    } else {
-                                      reverted.count = Math.max(0, reverted.count - 1);
-                                      reverted.byMe = false;
-                                    }
-                                    existing[idx] = reverted;
-                                    return { ...prev, [msg.id]: existing.filter((rx) => rx.count > 0) };
-                                  });
-                                });
-                              }}
-                              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-mono transition-all active:scale-95"
-                              style={{
-                                background: r.byMe ? "var(--accent)" : "var(--surface)",
-                                border: "1px solid var(--border)",
-                                color: r.byMe ? "white" : "var(--foreground)",
-                              }}
-                              aria-label={`${r.emoji} reaction, ${r.count} ${r.count === 1 ? "person" : "people"}. ${r.byMe ? "Click to remove" : "Click to add"}`}
-                              aria-pressed={r.byMe}>
-                              {r.emoji} {r.count}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* A3 — Read receipt on last sent message */}
-                      {isLastSent && partnerLastRead && (
-                        <p className="text-[9px] font-mono mt-0.5" style={{ color: "var(--muted)" }}
-                          aria-label="Message read">
-                          ✓✓ Seen
-                        </p>
-                      )}
                     </div>
                   );
                 })}
@@ -1043,6 +1066,7 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                 </AnimatePresence>
 
                 <form onSubmit={handleSend} className="flex items-end gap-2 px-3 py-3">
+                  {/* Close composer */}
                   <button type="button" onClick={closeInput}
                     className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors mb-0.5"
                     style={{ background: "var(--border)", color: "var(--muted)" }} aria-label="Close composer">
@@ -1051,6 +1075,27 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                     </svg>
                   </button>
 
+                  {/* Image button — LEFT of input per spec */}
+                  <button type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center mb-0.5 transition-opacity"
+                    style={{ background: "var(--border)", opacity: uploadingImage ? 0.4 : 0.7 }}
+                    aria-label="Send image">
+                    {uploadingImage ? (
+                      <motion.div className="w-3 h-3 rounded-full border-2"
+                        style={{ borderColor: "var(--muted)", borderTopColor: "var(--accent)" }}
+                        animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }} />
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <rect x="1.5" y="3" width="13" height="10" rx="2" stroke="var(--muted)" strokeWidth="1.2" />
+                        <circle cx="5.5" cy="6.5" r="1" fill="var(--muted)" />
+                        <path d="M1.5 10.5l3.5-3 3 3 2-2 3.5 3" stroke="var(--muted)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Text input */}
                   <div className={`flex-1 flex items-end rounded-lg px-4 py-2.5 transition-all ${composerFocused ? "composer-focused" : ""}`}
                     style={{ background: "var(--input-bg)", minHeight: 44 }}>
                     <textarea ref={inputRef} value={input} onChange={handleTyping}
@@ -1066,26 +1111,7 @@ function ActiveRoom({ matchState, userId, myProfile }: {
                       aria-label={`Message ${partnerName}`} />
                   </div>
 
-                  {/* B2 — Image upload button */}
-                  <button type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mb-0.5 transition-opacity"
-                    style={{ background: "var(--border)", opacity: uploadingImage ? 0.4 : 0.75 }}
-                    aria-label="Send image">
-                    {uploadingImage ? (
-                      <motion.div className="w-3 h-3 rounded-full border-2"
-                        style={{ borderColor: "var(--muted)", borderTopColor: "var(--accent)" }}
-                        animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }} />
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <rect x="1.5" y="3" width="13" height="10" rx="2" stroke="var(--foreground)" strokeWidth="1.2" />
-                        <circle cx="5.5" cy="6.5" r="1" fill="var(--foreground)" />
-                        <path d="M1.5 10.5l3.5-3 3 3 2-2 3.5 3" stroke="var(--foreground)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </button>
-
+                  {/* Send */}
                   <motion.button type="submit" disabled={!input.trim()}
                     className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center mb-0.5"
                     style={{ background: input.trim() ? "var(--accent)" : "var(--border)", transition: "background 0.15s ease, opacity 0.15s ease", opacity: input.trim() ? 1 : 0.45 }}

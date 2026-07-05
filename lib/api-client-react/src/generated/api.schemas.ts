@@ -66,6 +66,17 @@ export interface Profile {
   aura?: string | null;
   lastActive: string;
   createdAt: string;
+  isPremium: boolean;
+  /** @nullable */
+  premiumGrantedAt?: string | null;
+  /** @nullable */
+  nameColor?: string | null;
+  /** @nullable */
+  fontFamily?: string | null;
+  /** @nullable */
+  fontSize?: string | null;
+  /** @nullable */
+  wallpaper?: string | null;
 }
 
 export interface ProfileSetup {
@@ -100,6 +111,14 @@ export interface ProfileUpdate {
   icebreaker?: string;
   /** @nullable */
   aura?: string | null;
+  /** @nullable */
+  nameColor?: string | null;
+  /** @nullable */
+  fontFamily?: string | null;
+  /** @nullable */
+  fontSize?: string | null;
+  /** @nullable */
+  wallpaper?: string | null;
 }
 
 export interface MatchPartner {
@@ -149,8 +168,12 @@ export interface Message {
   replyToId?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  isDeleted: boolean;
+  isViewOnce: boolean;
   /** @nullable */
-  readAt?: string | null;
+  viewedAt?: string | null;
+  /** @nullable */
+  editedAt?: string | null;
   createdAt: string;
 }
 
@@ -161,6 +184,15 @@ export interface MessageInput {
   replyToId?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  isViewOnce?: boolean;
+}
+
+export interface MessageEditInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  content: string;
 }
 
 export interface ArchivedMatch {

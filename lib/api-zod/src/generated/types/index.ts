@@ -23,6 +23,7 @@ export * from './matchPartner';
 export * from './matchState';
 export * from './matchStateStatus';
 export * from './message';
+export * from './messageEditInput';
 export * from './messageInput';
 export * from './mobileTokenExchangeRequest';
 export * from './mobileTokenExchangeSuccess';
